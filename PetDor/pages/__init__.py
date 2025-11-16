@@ -1,20 +1,23 @@
 """
-Módulo de páginas da aplicação PET DOR
+Páginas principais da interface PETDor.
+
+Cada módulo contém uma função `render()` que desenha a página no Streamlit.
 """
-from pages.login import render_login_page
-from pages.cadastro import render_cadastro_page
-from pages.recuperar_senha import render_recuperar_senha_page
-from pages.reset_senha import render_reset_senha_page
-from pages.avaliacao import render_avaliacao_page
-from pages.historico import render_historico_page
-from pages.conta import render_conta_page
+
+from . import avaliacao
+from . import cadastro
+from . import conta
+from . import historico
+from . import login
+from . import recuperar_senha
+from . import reset_senha
 
 __all__ = [
-    'render_login_page',
-    'render_cadastro_page',
-    'render_recuperar_senha_page',
-    'render_reset_senha_page',
-    'render_avaliacao_page',
-    'render_historico_page',
-    'render_conta_page'
+    "avaliacao",
+    "cadastro",
+    "conta",
+    "historico",
+    "login",
+    "recuperar_senha",
+    "reset_senha",
 ]
