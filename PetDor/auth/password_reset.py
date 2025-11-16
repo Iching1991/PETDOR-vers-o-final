@@ -1,180 +1,192 @@
 """
-Sistema de recuperação e reset de senha
+Gerenciamento de recuperação e redefinição de senha
 """
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
+import sqlite3
 import secrets
-import bcrypt
 from datetime import datetime, timedelta
-from typing import Tuple, Optional
-import logging
-
-from database.connection import get_db
-from config import TOKEN_EXPIRATION, MAX_RESET_ATTEMPTS_PER_DAY
-from utils.email_sender import enviar_email_html, gerar_html_reset_senha
-from utils.validators import validar_senha, validar_email
-
-logger = logging.getLogger(__name__)
+from typing import Tuple
+from config import DATABASE_PATH
+from auth.user import buscar_usuario_por_email, atualizar_senha
+from utils.validators import validar_email, validar_senha, senhas_conferem
 
 
-def _get_usuario_por_email(email: str):
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, nome, email FROM usuarios WHERE email = ? AND ativo = 1",
-            (email.lower().strip(),),
-        )
-        return cur.fetchone()
+def conectar_db():
+    """Cria conexão com o banco de dados"""
+    return sqlite3.connect(DATABASE_PATH)
 
 
-def _contar_resets_ultimas_24h(usuario_id: int) -> int:
-    limite = datetime.now() - timedelta(days=1)
-    limite_str = limite.strftime("%Y-%m-%d %H:%M:%S")
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM password_resets
-            WHERE usuario_id = ? AND created_at > ?
-            """,
-            (usuario_id, limite_str),
-        )
-        row = cur.fetchone()
-    return row["total"] if row else 0
+def gerar_token() -> str:
+    """Gera um token seguro para reset de senha"""
+    return secrets.token_urlsafe(32)
 
 
-def gerar_token_reset(email: str) -> Tuple[bool, str]:
+def solicitar_reset(email: str) -> Tuple[bool, str]:
     """
-    Gera token para reset de senha e envia e-mail.
-    Retorna (sucesso, mensagem amigável).
+    Solicita reset de senha para um email
+
+    Args:
+        email: Email do usuário
+
+    Returns:
+        Tupla (sucesso, mensagem)
     """
     ok, msg = validar_email(email)
     if not ok:
         return False, msg
 
-    user = _get_usuario_por_email(email)
-    # Segurança: não revela se email existe ou não
-    if not user:
-        logger.info(f"Solicitação de reset para email não cadastrado: {email}")
-        return True, (
-            "Se o e-mail estiver cadastrado, um link de redefinição será enviado. "
-            "Verifique sua caixa de entrada (e spam)."
-        )
+    # Busca usuário
+    usuario = buscar_usuario_por_email(email)
 
-    usuario_id, nome, _ = user["id"], user["nome"], user["email"]
-
-    # Rate limit
-    tentativas = _contar_resets_ultimas_24h(usuario_id)
-    if tentativas >= MAX_RESET_ATTEMPTS_PER_DAY:
-        return False, (
-            f"Você já solicitou redefinição {MAX_RESET_ATTEMPTS_PER_DAY} vezes nas últimas 24h. "
-            "Tente novamente mais tarde."
-        )
-
-    token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now() + TOKEN_EXPIRATION).strftime("%Y-%m-%d %H:%M:%S")
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if not usuario:
+        # Por segurança, não revela se o email existe ou não
+        return True, "Se o email estiver cadastrado, você receberá um link de recuperação."
 
     try:
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                INSERT INTO password_resets (usuario_id, token, expires_at, used, created_at)
-                VALUES (?, ?, ?, 0, ?)
-                """,
-                (usuario_id, token, expires_at, created_at),
-            )
-            conn.commit()
+        conn = conectar_db()
+        cursor = conn.cursor()
 
-        html = gerar_html_reset_senha(nome, token)
-        ok_email = enviar_email_html(email, "🔐 Redefinição de senha - PET DOR", html)
+        # Gera token
+        token = gerar_token()
+        expires_at = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        if not ok_email:
-            return False, "Erro ao enviar e-mail de recuperação. Tente novamente mais tarde."
-
-        logger.info(f"Token de reset gerado para usuário {usuario_id}")
-        return True, (
-            "Se o e-mail estiver cadastrado, você receberá um link de redefinição em instantes. "
-            "Verifique seu e-mail (e a pasta de spam)."
+        # Salva token
+        cursor.execute(
+            """INSERT INTO password_resets (usuario_id, token, expires_at, created_at, used)
+               VALUES (?, ?, ?, ?, 0)""",
+            (usuario['id'], token, expires_at, created_at)
         )
 
+        conn.commit()
+
+        # TODO: Enviar email com o link
+        # Link seria algo como: https://seuapp.com/reset_senha?token={token}
+        print(f"[DEBUG] Token de reset: {token}")  # Remover em produção
+
+        return True, "Se o email estiver cadastrado, você receberá um link de recuperação."
+
     except Exception as e:
-        logger.error(f"Erro ao gerar token de reset: {e}")
-        return False, "Erro ao processar solicitação. Tente novamente."
+        return False, f"Erro ao solicitar reset: {str(e)}"
+    finally:
+        conn.close()
 
 
-def validar_token(token: str) -> Tuple[Optional[int], Optional[str]]:
+def validar_token(token: str) -> Tuple[bool, str]:
     """
-    Valida token de reset.
-    Retorna (usuario_id erro). Se erro for None, token é válido.
+    Valida se um token é válido e não expirou
+
+    Args:
+        token: Token de reset
+
+    Returns:
+        Tupla (válido, mensagem)
     """
     if not token:
-        return None, "Token inválido."
+        return False, "Token inválido"
 
     try:
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT usuario_id, expires_at, used
-                FROM password_resets
-                WHERE token = ?
-                ORDER BY id DESC
-                LIMIT 1
-                """,
-                (token,),
-            )
-            row = cur.fetchone()
+        conn = conectar_db()
+        cursor = conn.cursor()
 
-        if not row:
-            return None, "Token inválido ou inexistente."
+        cursor.execute(
+            """SELECT id, usuario_id, expires_at, used 
+               FROM password_resets 
+               WHERE token = ?""",
+            (token,)
+        )
 
-        if row["used"]:
-            return None, "Este link já foi utilizado."
+        resultado = cursor.fetchone()
 
-        expires_at = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
-        if datetime.now() > expires_at:
-            return None, "Este link expirou. Solicite um novo."
+        if not resultado:
+            return False, "Token inválido ou expirado"
 
-        return row["usuario_id"], None
+        reset_id, usuario_id, expires_at, used = resultado
+
+        if used:
+            return False, "Este token já foi utilizado"
+
+        # Verifica expiração
+        expires_datetime = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+        if datetime.now() > expires_datetime:
+            return False, "Token expirado. Solicite um novo link."
+
+        return True, "Token válido"
 
     except Exception as e:
-        logger.error(f"Erro ao validar token: {e}")
-        return None, "Erro ao validar link. Tente novamente."
+        return False, f"Erro ao validar token: {str(e)}"
+    finally:
+        conn.close()
 
 
-def resetar_senha(token: str, nova_senha: str) -> Tuple[bool, str]:
+def redefinir_senha(token: str, nova_senha: str, confirmar_senha: str) -> Tuple[bool, str]:
     """
-    Reseta senha a partir de um token válido.
-    Retorna (sucesso, mensagem)
-    """
-    usuario_id, erro = validar_token(token)
-    if erro:
-        return False, erro
+    Redefine a senha usando um token válido
 
+    Args:
+        token: Token de reset
+        nova_senha: Nova senha
+        confirmar_senha: Confirmação da senha
+
+    Returns:
+        Tupla (sucesso, mensagem)
+    """
+    # Valida token
+    valido, msg = validar_token(token)
+    if not valido:
+        return False, msg
+
+    # Valida senha
     ok, msg = validar_senha(nova_senha)
     if not ok:
         return False, msg
 
-    nova_hash = bcrypt.hashpw(nova_senha.encode("utf-8"), bcrypt.gensalt())
+    ok, msg = senhas_conferem(nova_senha, confirmar_senha)
+    if not ok:
+        return False, msg
 
     try:
-        with get_db() as conn:
-            cur = conn.cursor()
-            # Atualiza senha do usuário
-            cur.execute(
-                "UPDATE usuarios SET senha = ? WHERE id = ?",
-                (nova_hash, usuario_id),
-            )
-            # Marca token como usado
-            cur.execute(
-                "UPDATE password_resets SET used = 1 WHERE token = ?",
-                (token,),
-            )
-            conn.commit()
+        conn = conectar_db()
+        cursor = conn.cursor()
 
-        logger.info(f"Senha redefinida para usuário id={usuario_id}")
-        return True, "Senha redefinida com sucesso! Você já pode efetuar login com a nova senha."
+        # Busca usuario_id do token
+        cursor.execute(
+            "SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0",
+            (token,)
+        )
+
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            return False, "Token inválido"
+
+        usuario_id = resultado[0]
+
+        # Atualiza senha
+        sucesso, msg = atualizar_senha(usuario_id, nova_senha)
+
+        if not sucesso:
+            return False, msg
+
+        # Marca token como usado
+        cursor.execute(
+            "UPDATE password_resets SET used = 1 WHERE token = ?",
+            (token,)
+        )
+
+        conn.commit()
+
+        return True, "Senha redefinida com sucesso!"
+
     except Exception as e:
-        logger.error(f"Erro ao redefinir senha: {e}")
-        return False, "Erro ao redefinir senha. Tente novamente."
+        return False, f"Erro ao redefinir senha: {str(e)}"
+    finally:
+        conn.close()
+
