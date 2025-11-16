@@ -1,18 +1,17 @@
 """
 Módulo utilitário do PETDor.
-
-Contém funções auxiliares como:
-- validações,
-- envio de e-mails,
-- geração de PDFs.
+Inclui:
+- validators
+- email_sender
+- pdf_generator
 """
 
+from . import validators
 from . import email_sender
 from . import pdf_generator
-from . import validator
 
 __all__ = [
-    "validator",
+    "validators",
     "email_sender",
     "pdf_generator",
 ]
