@@ -1,45 +1,26 @@
 """
-Funções de validação de entrada
+Funções de validação utilizadas no PETDor.
 """
-import re
-from typing import Tuple
-from config import PASSWORD_MIN_LENGTH
+
+def validar_email(email: str) -> bool:
+    """
+    Valida o formato básico de um e-mail.
+    Aqui pode ser simples, pois a validação final é feita no servidor SMTP.
+    """
+    if not email or "@" not in email or "." not in email:
+        return False
+    return True
 
 
-def validar_email(email: str) -> Tuple[bool, str]:
-    if not email:
-        return False, "E-mail é obrigatório."
-
-    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    if not re.match(pattern, email):
-        return False, "Formato de e-mail inválido."
-
-    return True, ""
+def validar_senha(senha: str) -> bool:
+    """
+    A senha deve ter pelo menos 6 caracteres.
+    """
+    return senha is not None and len(senha) >= 6
 
 
-def validar_senha(senha: str) -> Tuple[bool, str]:
-    if not senha:
-        return False, "Senha é obrigatória."
-
-    if len(senha) < PASSWORD_MIN_LENGTH:
-        return False, f"Senha deve ter pelo menos {PASSWORD_MIN_LENGTH} caracteres."
-
-    # Se quiser reforçar a segurança:
-    # if not any(c.isdigit() for c in senha):
-    #     return False, "A senha deve conter pelo menos um número."
-    # if not any(c.isupper() for c in senha):
-    #     return False, "A senha deve conter pelo menos uma letra maiúscula."
-
-    return True, ""
-
-
-def validar_nome(nome: str) -> Tuple[bool, str]:
-    if not nome or len(nome.strip()) < 3:
-        return False, "Nome deve ter pelo menos 3 caracteres."
-    return True, ""
-
-
-def senhas_conferem(senha: str, confirmacao: str) -> Tuple[bool, str]:
-    if senha != confirmacao:
-        return False, "As senhas não conferem."
-    return True, ""
+def validar_nome(nome: str) -> bool:
+    """
+    O nome deve ter pelo menos 2 caracteres reais.
+    """
+    return nome is not None and len(nome.strip()) >= 2
