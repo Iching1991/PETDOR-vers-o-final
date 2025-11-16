@@ -18,9 +18,17 @@ def validar_senha(senha: str) -> bool:
     """
     return senha is not None and len(senha) >= 6
 
+def senhas_conferem(senha1: str, senha2: str) -> bool:
+    """
+    Retorna True se as duas senhas forem iguais.
+    """
+    return senha1 == senha2
+
+
 
 def validar_nome(nome: str) -> bool:
     """
     O nome deve ter pelo menos 2 caracteres reais.
     """
     return nome is not None and len(nome.strip()) >= 2
+
