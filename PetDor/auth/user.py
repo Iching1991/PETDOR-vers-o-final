@@ -2,8 +2,18 @@
 
 import sqlite3
 import bcrypt
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path ANTES de qualquer importação local
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
+# Agora sim, importe os módulos locais
 from utils.validators import validar_email, validar_senha, validar_nome, senhas_conferem
 from config import DATABASE_PATH
+
 
 def conectar_db():
     return sqlite3.connect(DATABASE_PATH)
