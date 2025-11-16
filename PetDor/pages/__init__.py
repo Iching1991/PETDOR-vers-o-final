@@ -1,7 +1,12 @@
 """
-Páginas principais da interface PETDor.
+Módulo de páginas do PETDor.
 
-Cada módulo contém uma função `render()` que desenha a página no Streamlit.
+Responsável por:
+- interface de cadastro e login,
+- avaliação de dor,
+- histórico de avaliações,
+- gerenciamento de conta,
+- recuperação de senha.
 """
 
 from . import avaliacao
@@ -21,3 +26,5 @@ __all__ = [
     "recuperar_senha",
     "reset_senha",
 ]
+
+
