@@ -3,9 +3,9 @@ Envio de e-mails em HTML (boas-vindas e reset de senha)
 """
 import smtplib
 import ssl
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
- logging
 
 from config import SMTP_CONFIG, APP_URL, TOKEN_EXP_HOURS
 
@@ -18,7 +18,7 @@ def enviar_email_html(destinatario: str, assunto: str, html_body: str) -> bool:
     Retorna True se enviado com sucesso.
     """
     try:
-        if not SMTP_CONFIG["user"] or not SMTP_CONFIG["password"]:
+        if not SMTP_CONFIG.get("user") or not SMTP_CONFIG.get("password"):
             logger.error("Configuração SMTP incompleta.")
             return False
 
@@ -65,52 +65,14 @@ def gerar_html_boas_vindas(nome: str) -> str:
             Seu cadastro foi realizado com sucesso. Agora você pode utilizar o PET DOR
             para avaliar a dor dos seus pacientes ou pets de forma organizada.
           </p>
-          <p>
-            Clique no botão abaixo para acessar o sistema:
-          </p>
-          <p style="text-align: center; margin 20px 0;">
+          <p>Clique no botão abaixo para acessar o sistema:</p>
+          <p style="text-align: center; margin: 20px 0;">
             <a href="{APP_URL}" 
                style="background-color: #2b8aef; color: #ffffff; padding: 10px 20px; 
                       border-radius: 6px; text-decoration: none; font-weight: bold;">
               Acessar PET DOR
             </a>
           </p>
-          <p style="font-size: 12px; color: #718096; margin-top: 20px;">
-            Se você não reconhece este cadastro, ignore este e-mail.
-          </p>
-        </div>
-      </body>
-    </html>
-    """
+          <p style="
 
 
-def gerar_html_reset_senha(nome: str, token: str) -> str:
-    reset_link = f"{APP_URL}?token={token}"
-    return f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7fafc; padding: 20px;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
-                    padding: 20px; border: 1px solid #e2e8f0;">
-          <h2 style="color: #2b8aef;">🔐 Redefinição de senha - PET DOR</h2>
-         p>Olá <strong>{nome}</strong>,</p>
-          <p>
-            Recebemos uma solicitação para redefinir sua senha.
-            Clique no botão abaixo para criar uma nova senha.
-          </p>
-          <p style="text-align: center; margin: 20px 0;">
-            <a href="{reset_link}" 
-               style="background-color: #2b8aef; color: #ffffff; padding: 10px 20px; 
-                      border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Redefinir minha senha
-            </a>
-          </p>
-          <p style="font-size: 13px; color: #4a5568;">
-            Este link é válido por <strong>{TOKEN_EXP_HOURS} hora(s)</strong>.
-          </p>
-          <p style="font-size: 12px; color: #718096; margin-top: 20px;">
-            Se você não solicitou esta redefinição, ignore este e-mail. Sua senha permanecerá inalterada.
-          </p>
-        </div>
-      </body>
-    </html>
-    """
