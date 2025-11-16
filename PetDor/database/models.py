@@ -1,14 +1,8 @@
-# database/models.py
-
 """
 Modelos e operações de banco de dados
 """
 import sys
 from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Optional, Tuple
-import json
-import logging
 
 # Adiciona a raiz do projeto ao path
 root_path = Path(__file__).parent.parent
@@ -16,6 +10,10 @@ if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
 # Agora importe os módulos locais
+from datetime import datetime
+from typing import List, Dict, Optional, Tuple
+import json
+import logging
 from database.connection import get_db
 
 logger = logging.getLogger(__name__)
@@ -156,5 +154,3 @@ def get_estatisticas_usuario(usuario_id: int) -> Dict:
     except Exception as e:
         logger.error(f"Erro ao buscar estatísticas: {e}")
         return {}
-
-
