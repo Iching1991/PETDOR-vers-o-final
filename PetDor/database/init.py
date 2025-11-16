@@ -1,21 +1,18 @@
 """
-Módulo de banco de dados do PET DOR
+Módulo de banco de dados do PETDor.
+
+Inclui:
+- inicialização do banco,
+- criação de conexões,
+- modelos de dados.
 """
-from database.connection import init_database, get_db
-from database.models import (
-    salvar_avaliacao,
-    buscar_avaliacoes_usuario,
-    buscar_avaliacao_detalhada,
-    deletar_avaliacao,
-    get_estatisticas_usuario
-)
+
+from . import connection
+from . import init
+from . import models
 
 __all__ = [
-    'init_database',
-    'get_db',
-    'salvar_avaliacao',
-    'buscar_avaliacoes_usuario',
-    'buscar_avaliacao_detalhada',
-    'deletar_avaliacao',
-    'get_estatisticas_usuario'
+    "connection",
+    "init",
+    "models",
 ]
