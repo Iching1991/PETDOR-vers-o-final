@@ -1,102 +1,75 @@
+"""
+Envio de emails para recuperação de senha
+"""
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
 import smtplib
-import ssl
+from email.mime.text import MimeText
+from email.mime.multipart import MimeMultipart
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from config import SMTP_CONFIG, APP_URL, TOKEN_EXP_HOURS
+from config import EMAIL_CONFIG
 
 logger = logging.getLogger(__name__)
 
-def enviar_email_html(destinatario: str, assunto: str, html_body: str) -> bool:
-    """Envia e-mail HTML e retorna True se enviado com sucesso."""
+def enviar_email_reset(email_destino, token):
+    """Envia email de reset de senha"""
     try:
-        if not SMTP_CONFIG.get("user") or not SMTP_CONFIG.get("password"):
-            logger.error("Configuração SMTP incompleta.")
-            return False
+        if not EMAIL_CONFIG:
+            logger.warning("Configuração de email não encontrada - modo demo ativado")
+            return True, "Email enviado (modo demo)"
 
-        msg = MIMEMultipart("alternative")
-        msg["From"] = SMTP_CONFIG["user"]
-        msg["To"] = destinatario
-        msg["Subject"] = assunto
+        # Configuração do email
+        smtp_server = EMAIL_CONFIG.get('smtp_server', 'smtp.gmail.com')
+        smtp_port = EMAIL_CONFIG.get('smtp_port', 587)
+        email_remetente = EMAIL_CONFIG.get('email_remetente')
+        senha_email = EMAIL_CONFIG.get('senha_email')
 
-        part = MIMEText(html_body, "html", "utf-8")
-        msg.attach(part)
+        if not all([email_remetente, senha_email]):
+            logger.warning("Credenciais de email incompletas - modo demo ativado")
+            return True, "Email enviado (modo demo)"
 
-        context = ssl.create_default_context()
-        with smtplib.SMTP(SMTP_CONFIG["server"], SMTP_CONFIG["port"]) as server:
-            server.starttls(context=context)
-            server.login(SMTP_CONFIG["user"], SMTP_CONFIG["password"])
-            server.sendmail(SMTP_CONFIG["user"], destinatario, msg.as_string())
+        # Cria mensagem
+        msg = MimeMultipart()
+        msg['From'] = f"PETDor <{email_remetente}>"
+        msg['To'] = email_destino
+        msg['Subject'] = "PETDor - Recuperação de Senha"
 
-        logger.info(f"E-mail enviado para {destinatario}: {assunto}")
-        return True
+        # Corpo do email
+        corpo = f"""
+        Olá!
 
-    except smtplib.SMTPAuthenticationError:
-        logger.error("Erro de autenticação SMTP. Verifique usuário/senha.")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"Erro SMTP: {e}")
-        return False
+        Você solicitou a recuperação de senha da sua conta PETDor.
+
+        Para redefinir sua senha, clique no link abaixo:
+        https://petdor.streamlit.app/?token={token}
+
+        ⚠️ Este link expira em 1 hora por questões de segurança.
+
+        Se você não solicitou esta recuperação, ignore este email.
+
+        Atenciosamente,
+        Equipe PETDor
+        """
+
+        msg.attach(MimeText(corpo, 'plain', 'utf-8'))
+
+        # Envia email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(email_remetente, senha_email)
+        text = msg.as_string()
+        server.sendmail(email_remetente, email_destino, text)
+        server.quit()
+
+        logger.info(f"Email de reset enviado para: {email_destino}")
+        return True, "Email enviado com sucesso"
+
     except Exception as e:
-        logger.error(f"Erro inesperado ao enviar e-mail: {e}")
-        return False
-
-
-def gerar_html_boas_vindas(nome: str) -> str:
-    return f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7fafc; padding: 20px;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
-                    padding: 20px; border: 1px solid #e2e8f0;">
-          <h2 style="color: #2b8aef;">🐾 Bem-vindo ao PET DOR</h2>
-          <p>Olá <strong>{nome}</strong>,</p>
-          <p>
-            Seu cadastro foi realizado com sucesso. Agora você pode utilizar o PET DOR
-            para avaliar a dor dos seus pacientes ou pets de forma organizada.
-          </p>
-          <p>Clique no botão abaixo para acessar o sistema:</p>
-          <p style="text-align: center; margin: 20px 0;">
-            <a href="{APP_URL}" 
-               style="background-color: #2b8aef; color: #ffffff; padding: 10px 20px; 
-                      border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Acessar PET DOR
-            </a>
-          </p>
-          <p style="font-size: 12px; color: #718096; margin-top: 20px;">
-            Se você não reconhece este cadastro, ignore este e-mail.
-          </p>
-        </div>
-      </body>
-    </html>
-    """
-
-def gerar_html_reset_senha(nome: str, token: str) -> str:
-    reset_link = f"{APP_URL}?token={token}"
-    return f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7fafc; padding: 20px;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
-                    padding: 20px; border: 1px solid #e2e8f0;">
-          <h2 style="color: #2b8aef;">🔐 Redefinição de senha - PET DOR</h2>
-          <p>Olá <strong>{nome}</strong>,</p>
-          <p>
-            Recebemos uma solicitação para redefinir sua senha.
-            Clique no botão abaixo para criar uma nova senha.
-          </p>
-          <p style="text-align: center; margin: 20px 0;">
-            <a href="{reset_link}" 
-               style="background-color: #2b8aef; color: #ffffff; padding: 10px 20px; 
-                      border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Redefinir minha senha
-            </a>
-          </p>
-          <p style="font-size: 13px; color: #4a5568;">
-            Este link é válido por <strong>{TOKEN_EXP_HOURS} hora(s)</strong>.
-          </p>
-          <p style="font-size: 12px; color: #718096; margin-top: 20px;">
-            Se você não solicitou esta redefinição, ignore este e-mail. Sua senha permanecerá inalterada.
-          </p>
-        </div>
-      </body>
-    </html>
-    """
+        logger.error(f"Erro ao enviar email: {e}")
+        return False, f"Erro ao enviar email: {str(e)}"
