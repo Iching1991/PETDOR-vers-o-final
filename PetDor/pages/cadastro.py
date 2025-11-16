@@ -21,5 +21,3 @@ def render_cadastro_page():
     if st.button("← Voltar ao Login"):
         st.session_state["menu"] = "login"
         st.experimental_rerun()
-
-
