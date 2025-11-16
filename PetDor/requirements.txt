@@ -1,4 +1,6 @@
 streamlit
 bcrypt
-fpdf
 pandas
+pillow
+python-dateutil
+fpdf2
