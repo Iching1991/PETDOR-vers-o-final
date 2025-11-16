@@ -1,20 +1,20 @@
 """
-Módulo de configurações de espécies para avaliação de dor
-Sistema modular - um arquivo .py por espécie
+Módulo relacionado às espécies atendidas no PETDor.
+
+Contém:
+- classes base,
+- dados de cães e gatos,
+- carregador central.
 """
-from especies.base import EspecieConfig, Pergunta
-from especies.loader import (
- get_especies_nomes,
-    get_especie_config,
-    get_escala_labels,
-    ESPECIES_DISPONIVEIS
-)
+
+from . import base
+from . import caes
+from . import gatos
+from . import loader
 
 __all__ = [
-    'EspecieConfig',
-    'Pergunta',
-    'get_especies_nomes',
-    'get_especie_config',
-    'get_escala_labels',
-    'ESPECIES_DISPONIVEIS'
+    "base",
+    "caes",
+    "gatos",
+    "loader",
 ]
