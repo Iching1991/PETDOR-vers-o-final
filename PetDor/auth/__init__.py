@@ -1,20 +1,16 @@
 """
-Módulo de autenticação do PET DOR
+Módulo de autenticação do PETDor.
+
+Responsável por:
+- gerenciamento de usuários,
+- autenticação,
+- fluxo de recuperação e redefinição de senha.
 """
-from auth.user import autenticar, cadastrar_usuario, deletar_usuario
-from auth.password_reset import (
-    gerar_token_reset,
-    validar_token,
-    resetar_senha,
-    pode_solicitar_reset
-)
+
+from . import user
+from . import password_reset
 
 __all__ = [
-    'autenticar',
-    'cadastrar_usuario',
-    'deletar_usuario',
-    'gerar_token_reset',
-    'validar_token',
-    'resetar_senha',
-    'pode_solicitar_reset'
+    "user",
+    "password_reset",
 ]
