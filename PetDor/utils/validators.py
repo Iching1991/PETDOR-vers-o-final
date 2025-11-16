@@ -1,33 +1,42 @@
-"""
-Funções de validação utilizadas no PETDor.
-"""
+import re
 
-def validar_email(email: str) -> bool:
+def validar_email(email: str):
     """
-    Valida o formato básico de um e-mail.
+    Valida email e retorna (bool, mensagem)
     """
-    if not email or "@" not in email or "." not in email:
-        return False
-    return True
+    if not email or "@" not in email:
+        return False, "E-mail inválido."
 
+    # Regex simples
+    padrao = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    if not re.match(padrao, email):
+        return False, "Formato de e-mail inválido."
 
-def validar_senha(senha: str) -> bool:
-    """
-    A senha deve ter pelo menos 6 caracteres.
-    """
-    return senha is not None and len(senha) >= 6
+    return True, ""
 
 
-def validar_nome(nome: str) -> bool:
+def validar_senha(senha: str):
     """
-    O nome deve ter pelo menos 2 caracteres reais.
+    Valida senha e retorna (bool, mensagem)
     """
-    return nome is not None and len(nome.strip()) >= 2
+    if not senha or len(senha) < 6:
+        return False, "A senha deve ter no mínimo 6 caracteres."
+    return True, ""
 
 
-def senhas_conferem(senha1: str, senha2: str) -> bool:
+def validar_nome(nome: str):
     """
-    Retorna True se as duas senhas forem iguais.
+    Valida nome e retorna (bool, mensagem)
     """
-    return senha1 == senha2
+    if not nome or len(nome.strip()) < 2:
+        return False, "O nome deve ter pelo menos 2 caracteres."
+    return True, ""
 
+
+def senhas_conferem(senha: str, confirmar: str):
+    """
+    Valida se senha == confirmar
+    """
+    if senha != confirmar:
+        return False, "As senhas não conferem."
+    return True, ""
