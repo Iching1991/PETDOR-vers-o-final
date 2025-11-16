@@ -1,6 +1,7 @@
 """
 Envio de e-mails em HTML (boas-vindas e reset de senha)
 """
+
 import smtplib
 import ssl
 import logging
@@ -54,25 +55,35 @@ def enviar_email_html(destinatario: str, assunto: str, html_body: str) -> bool:
 
 
 def gerar_html_boas_vindas(nome: str) -> str:
+    """
+    Gera HTML do e-mail de boas-vindas
+    """
     return f"""
     <html>
       <body style="font-family: Arial, sans-serif; background-color: #f7fafc; padding: 20px;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
                     padding: 20px; border: 1px solid #e2e8f0;">
           <h2 style="color: #2b8aef;">🐾 Bem-vindo ao PET DOR</h2>
+
           <p>Olá <strong>{nome}</strong>,</p>
-          <p>
-            Seu cadastro foi realizado com sucesso. Agora você pode utilizar o PET DOR
-            para avaliar a dor dos seus pacientes ou pets de forma organizada.
-          </p>
-          <p>Clique no botão abaixo para acessar o sistema:</p>
+
+          <p>Seu cadastro foi realizado com sucesso! Agora você já pode utilizar o PET DOR
+             para avaliar a dor dos seus pacientes ou pets de forma organizada.</p>
+
+          <p>Clique abaixo para acessar o sistema:</p>
+
           <p style="text-align: center; margin: 20px 0;">
             <a href="{APP_URL}" 
-               style="background-color: #2b8aef; color: #ffffff; padding: 10px 20px; 
+               style="background-color: #2b8aef; color: #ffffff; padding: 12px 24px;
                       border-radius: 6px; text-decoration: none; font-weight: bold;">
               Acessar PET DOR
             </a>
           </p>
-          <p style="
 
-
+          <p style="color: #555; margin-top: 30px; font-size: 14px;">
+            Caso você não tenha realizado este cadastro, favor ignorar este e-mail.
+          </p>
+        </div>
+      </body>
+    </html>
+    """
