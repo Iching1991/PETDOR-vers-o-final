@@ -7,13 +7,16 @@ Contém funções auxiliares como:
 - geração de PDFs.
 """
 
-from.import validators
-from.import email_sender
-from.import pdf_generator
+# utils/__init__.py
+
+from . import email_sender
+from . import pdf_generator
+from . import validator
 
 __all__ = [
     "validators",
     "email_sender",
     "pdf_generator",
 ]
+
 
