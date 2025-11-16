@@ -1,17 +1,26 @@
 """
 Gerenciamento de conexão com banco de dados
 """
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
+# Agora importe os módulos locais
 import sqlite3
 from contextlib import contextmanager
 import logging
-from config import DB_FILE
+from config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
 @contextmanager
 def get_db():
     """Context manager para conexão segura"""
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -33,8 +42,7 @@ def init_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
-                senha BLOB NOT NULL,
-                tipo TEXT NOT NULL,
+                senha_hash BLOB NOT NULL,
                 data_criacao TEXT NOT NULL,
                 ativo INTEGER DEFAULT 1
             )
