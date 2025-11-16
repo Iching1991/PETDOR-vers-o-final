@@ -1,4 +1,17 @@
 """
+Módulo de gerenciamento de banco de dados do PETDor.
+
+Responsável por:
+- conexão com SQLite,
+- inicialização de tabelas,
+- operações CRUD de usuários e avaliações.
+"""
+
+__all__ = [
+    "connection",
+    "models",
+]
+"""
 Módulo de banco de dados do PETDor.
 
 Inclui:
@@ -16,3 +29,4 @@ __all__ = [
     "init",
     "models",
 ]
+
