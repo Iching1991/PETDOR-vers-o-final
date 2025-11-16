@@ -7,8 +7,11 @@ Responsável por:
 - histórico de avaliações,
 - gerenciamento de conta,
 - recuperação de senha.
+
+Cada módulo contém uma função `show()` que desenha a página no Streamlit.
 """
 
+# Importa os módulos de páginas
 from . import avaliacao
 from . import cadastro
 from . import conta
@@ -26,5 +29,3 @@ __all__ = [
     "recuperar_senha",
     "reset_senha",
 ]
-
-
