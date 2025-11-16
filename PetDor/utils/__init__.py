@@ -1,13 +1,17 @@
 """
-Pacote utils do PETDor
+Módulo de utilitários do PETDor.
+
+Responsável por:
+- validação de dados,
+- envio de emails,
+- geração de PDFs,
+- funções auxiliares.
 """
 
-from . import email_sender
-from . import pdf_generator
 from . import validators
+from . import email_sender
 
 __all__ = [
-    "email_sender",
-    "pdf_generator",
     "validators",
+    "email_sender",
 ]
