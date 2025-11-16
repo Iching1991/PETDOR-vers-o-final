@@ -1,6 +1,7 @@
-streamlit
 bcrypt
+fpdf2
 pandas
 pillow
 python-dateutil
-fpdf2
+streamlit
+requests
