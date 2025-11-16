@@ -1,98 +1,32 @@
 """
-Configurações centralizadas do PET DOR
+Configurações do PETDor
 """
+import os
+from pathlib import Path
 
-import streamlit as st
-from datetime import timedelta
+# Caminho do banco de dados
+BASE_DIR = Path(__file__).parent
+DATABASE_PATH = BASE_DIR / "petdor.db"
 
-# ===========================
-# URL do aplicativo
-# ===========================
-# Se usar Streamlit Cloud, coloque a URL pública aqui ou no .streamlit/secrets.toml
-APP_URL = st.secrets.get("APP_URL", "https://petdor.streamlit.app")
-
-# ===========================
-# Banco de dados
-# ===========================
-# Caminho do arquivo SQLite
-DB_FILE = st.secrets.get("DB_PATH", "petdor.db")
-
-# ===========================
-# Segurança / Tokens
-# ===========================
-# Quantas horas o link de reset de senha fica válido
-TOKEN_EXP_HOURS = int(st.secrets.get("TOKEN_EXP_HOURS", 1))
-TOKEN_EXPIRATION = timedelta(hours=TOKEN_EXP_HOURS)
-
-# Limite de solicitações de reset por dia (por usuário)
-MAX_RESET_ATTEMPTS_PER_DAY = int(st.secrets.get("MAX_RESET_ATTEMPTS_PER_DAY", 3))
-
-# Tamanho mínimo da senha
-PASSWORD_MIN_LENGTH = int(st.secrets.get("PASSWORD_MIN_LENGTH", 6))
-
-# ===========================
-# E-mail (SMTP)
-# ===========================
-SMTP_CONFIG = {
-    "server": st.secrets.get("SMTP_SERVER", "smtp.gmail.com"),
-    "port": int(st.secrets.get("SMTP_PORT", 465)),
-    "user": st.secrets.get("EMAIL_USER", ""),
-    "password": st.secrets.get("EMAIL_PASS", "")
+# Configuração de email (opcional - para produção)
+EMAIL_CONFIG = {
+    # 'smtp_server': 'smtp.gmail.com',
+    # 'smtp_port': 587,
+    # 'email_remetente': 'seu_email@gmail.com',
+    # 'senha_email': 'sua_senha_app',
 }
 
-# ===========================
-# Níveis de dor (percentuais)
-# ===========================
-# Estes níveis são usados em:
-# - config.get_nivel_dor(percentual)
-# - utils/pdf_generator.py para texto e cores
-NIVEL_DOR_CONFIG = {
-    "baixo": {
-        "limite": 30.0,           # < 30%
-        "cor": "#28a745",         # verde
-        "texto": (
-            "Baixa probabilidade de dor significativa. "
-            "Continue monitorando o comportamento do animal, "
-            "mantendo rotina e ambiente confortáveis."
-        )
-    },
-    "moderado": {
-        "limite": 60.0,           # >=30 e <60
-        "cor": "#ffc107",         # amarelo
-        "texto": (
-            "Probabilidade moderada de dor. "
-            "Recomenda-se observar com atenção nas próximas 24–48 horas "
-            "e considerar avaliação veterinária, especialmente se os sinais persistirem."
-        )
-    },
-    "alto": {
-        "limite": 100.0,          # >=60
-        "cor": "#dc3545",         # vermelho
-        "texto": (
-            "Alta probabilidade de dor. "
-            "Recomenda-se avaliação veterinária o mais breve possível. "
-            "Sinais de piora ou desconforto intenso exigem atendimento imediato."
-        )
-    }
+# Configurações do app
+APP_CONFIG = {
+    'titulo': 'PETDor - Avaliação de Dor em Pets',
+    'versao': '1.0.0',
+    'descricao': 'Aplicativo para avaliação de dor em cães e gatos',
+    'autor': 'PETDor Team',
 }
 
-def get_nivel_dor(percentual: float) -> dict:
-    """
-    Retorna um dicionário com as informações do nível de dor correspondente
-    ao percentual informado.
-
-    Usado em:
-      - utils/pdf_generator.py
-      - pages/avaliacao.py (para recomendação clínica)
-    """
-    try:
-        p = float(percentual)
-    except (TypeError, ValueError):
-        p = 0.0
-
-    if p < NIVEL_DOR_CONFIG["baixo"]["limite"]:
-        return NIVEL_DOR_CONFIG["baixo"]
-    elif p < NIVEL_DOR_CONFIG["moderado"]["limite"]:
-        return NIVEL_DOR_CONFIG["moderado"]
-    else:
-        return NIVEL_DOR_CONFIG["alto"]
+# Configurações de segurança
+SECURITY_CONFIG = {
+    'senha_min_length': 6,
+    'token_expiry_hours': 1,
+    'max_login_attempts': 5,
+}
