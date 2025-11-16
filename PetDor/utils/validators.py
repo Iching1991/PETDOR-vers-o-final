@@ -35,3 +35,4 @@ def senhas_conferem(senha1: str, senha2: str) -> tuple[bool, str]:
     if senha1 != senha2:
         return False, "As senhas não conferem."
     return True, ""
+
