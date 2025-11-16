@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 def enviar_email_html(destinatario: str, assunto: str, html_body: str) -> bool:
     """
     Envia um e-mail com corpo HTML.
-    Retorna True se enviado com sucesso.
     """
     try:
         if not SMTP_CONFIG.get("user") or not SMTP_CONFIG.get("password"):
@@ -43,47 +42,72 @@ def enviar_email_html(destinatario: str, assunto: str, html_body: str) -> bool:
         logger.info(f"E-mail enviado para {destinatario}: {assunto}")
         return True
 
-    except smtplib.SMTPAuthenticationError:
-        logger.error("Erro de autenticação SMTP. Verifique usuário/senha.")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"Erro SMTP: {e}")
-        return False
     except Exception as e:
-        logger.error(f"Erro inesperado ao enviar e-mail: {e}")
+        logger.error(f"Erro ao enviar e-mail: {e}")
         return False
 
+
+# -----------------------------------------------------------
+# HTML PARA E-MAIL DE BOAS-VINDAS
+# -----------------------------------------------------------
 
 def gerar_html_boas_vindas(nome: str) -> str:
-    """
-    Gera HTML do e-mail de boas-vindas
-    """
     return f"""
     <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7fafc; padding: 20px;">
+      <body style="font-family: Arial, sans-serif; background-color: #f4f7fa; padding: 20px;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
-                    padding: 20px; border: 1px solid #e2e8f0;">
+                    padding: 20px; border: 1px solid #e5e9f0;">
           <h2 style="color: #2b8aef;">🐾 Bem-vindo ao PET DOR</h2>
-
           <p>Olá <strong>{nome}</strong>,</p>
+          <p>Seu cadastro foi concluído com sucesso.</p>
 
-          <p>Seu cadastro foi realizado com sucesso! Agora você já pode utilizar o PET DOR
-             para avaliar a dor dos seus pacientes ou pets de forma organizada.</p>
-
-          <p>Clique abaixo para acessar o sistema:</p>
-
-          <p style="text-align: center; margin: 20px 0;">
-            <a href="{APP_URL}" 
-               style="background-color: #2b8aef; color: #ffffff; padding: 12px 24px;
-                      border-radius: 6px; text-decoration: none; font-weight: bold;">
+          <p style="text-align: center; margin: 25px 0;">
+            <a href="{APP_URL}"
+               style="background:#2b8aef; padding: 12px 24px; color:#fff; text-decoration:none; border-radius:6px;">
               Acessar PET DOR
             </a>
           </p>
 
-          <p style="color: #555; margin-top: 30px; font-size: 14px;">
-            Caso você não tenha realizado este cadastro, favor ignorar este e-mail.
-          </p>
+          <p>Atenciosamente,<br>Equipe PET DOR 🐾</p>
         </div>
       </body>
     </html>
     """
+
+
+# -----------------------------------------------------------
+# HTML PARA RESET DE SENHA (FUNÇÃO FALTANDO)
+# -----------------------------------------------------------
+
+def gerar_html_reset_senha(nome: str, link_reset: str) -> str:
+    """
+    Retorna o HTML do e-mail de redefinição de senha.
+    """
+    return f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f4f7fa; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px;
+                    padding: 20px; border: 1px solid #e5e9f0;">
+          <h2 style="color: #e63946;">🔐 Recuperação de Senha</h2>
+
+          <p>Olá <strong>{nome}</strong>,</p>
+
+          <p>Recebemos uma solicitação para redefinir sua senha.</p>
+
+          <p style="text-align:center; margin: 25px 0;">
+            <a href="{link_reset}"
+               style="background:#e63946; padding: 12px 24px; color:#fff; text-decoration:none; border-radius:6px;">
+              Redefinir Senha
+            </a>
+          </p>
+
+          <p>Este link expira em {TOKEN_EXP_HOURS} horas.</p>
+
+          <p>Se não foi você, apenas ignore este e-mail.</p>
+
+          <p>Atenciosamente,<br>Equipe PET DOR 🐾</p>
+        </div>
+      </body>
+    </html>
+    """
+
