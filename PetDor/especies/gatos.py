@@ -1,78 +1,31 @@
-# especies/gatos.py
-from dataclasses import dataclass
-from typing import List, Dict
+#"""
+🐈 Configuração de avaliação para GATOS
+Escala: 0 a 7 (baseada em Feline Grimace Scale e Glasgow Composite Pain Scale)
+"""
+from especies.base import EspecieConfig, Pergunta
 
-
-@dataclass
-class Pergunta:
-    texto: str
-    invertida: bool = False
-
-
-class EspecieConfig:
-    def __init__(self,
-                 nome: str,
-                 escala_min: int,
-                 escala_max: int,
-                 perguntas: List[Pergunta],
-                 descricao: str = ""):
-        self.nome = nome
-        self.escala_min = escala_min
-        self.escala_max = escala_max
-        self.perguntas = perguntas
-        self.descricao = descricao or ""
-
-    def get_labels_escala(self) -> Dict[int, str]:
-        """Retorna labels para cada valor da escala (padrão genérico)."""
-        # Exemplo simples: trate 0..max como labels — ajuste conforme sua escala real
-        labels = {}
-        span = self.escala_max - self.escala_min
-        for v in range(self.escala_min, self.escala_max + 1):
-            if span == 0:
-                labels[v] = str(v)
-            else:
-                pct = (v - self.escala_min) / (span) * 100
-                if pct < 33:
-                    labels[v] = "Sem dor / Leve"
-                elif pct < 66:
-                    labels[v] = "Moderada"
-                else:
-                    labels[v] = "Severa"
-        return labels
-
-    def get_pontuacao_maxima(self) -> int:
-        """Retorna a pontuação máxima possível (soma das maiores respostas)."""
-        # cada pergunta pode atingir escala_max (ou outro peso se quiser)
-        return len(self.perguntas) * self.escala_max
-
-    def calcular_percentual(self, pontuacao_total: float) -> float:
-        """Converte pontuação total em percentual 0-100."""
-        maximo = self.get_pontuacao_maxima()
-        if maximo == 0:
-            return 0.0
-        return (pontuacao_total / maximo) * 100.0
-
-
-# --- Definição das perguntas de gatos (exemplo) ---
-GATOS_PERGUNTAS = [
-    Pergunta(texto="Meu gato brinca e interage com outros animais de estimação", invertida=False),
-    Pergunta(texto="Meu gato apresenta apetite normal", invertida=False),
-    Pergunta(texto="Meu gato evita contato e fica escondido", invertida=True),
-    Pergunta(texto="Meu gato vocaliza diferente (miados estranhos)", invertida=False),
-    Pergunta(texto="Meu gato demonstra desconforto ao manipular áreas do corpo", invertida=False),
-    # adicione/edite as perguntas reais conforme o seu questionário
-]
-
-GATOS_DESCRICAO = (
-    "Use esta escala para avaliar comportamentos indicativos de dor em felinos. "
-    "Responda com base nas últimas 24–48 horas."
-)
-
-GATOS_CONFIG = EspecieConfig(
+CONFIG_GATOS = EspecieConfig(
     nome="Gato",
-    escala_min=0,
-    escala_max=5,
-    perguntas=GATOS_PERGUNTAS,
-    descricao=GATOS_DESCRICAO
+    descricao="Avaliação de dor em gatos - Escala de 0 (nunca) a 7 (sempre)",
+    opcoes_escala=[
+        "0 - Nunca", "1 - Raramente", "2 - Às vezes", "3 - Frequentemente",
+        "4 - Quase Sempre", "5 - Sempre", "6 - Muito Frequente", "7 - Constante"
+    ],
+    perguntas=[
+        # Postura e Atividade
+        Pergunta(texto="Meu gato está com postura anormal (encolhido, rígido)", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato está menos ativo ou brincalhão", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato evita saltar ou subir em lugares", invertida=True, peso=1.0),
+        # Alimentação e Higiene
+        Pergunta(texto="O apetite do meu gato reduziu", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato está se lambendo menos ou com dificuldade", invertida=True, peso=1.0),
+        # Comportamento Social e Interação
+        Pergunta(texto="Meu gato se esconde mais ou evita contato", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato reage com dor ou agressividade ao toque", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato mia mais ou com vocalização diferente", invertida=True, peso=1.0),
+        # Sono e Conforto
+        Pergunta(texto="Meu gato tem dificuldade para ficar confortável ou dormir", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato dormiu bem durante a noite", invertida=False, peso=1.0),
+    ]
 )
 
