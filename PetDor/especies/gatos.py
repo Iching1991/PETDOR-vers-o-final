@@ -1,4 +1,4 @@
-#"""
+"""
 🐈 Configuração de avaliação para GATOS
 Escala: 0 a 7 (baseada em Feline Grimace Scale e Glasgow Composite Pain Scale)
 """
@@ -28,4 +28,3 @@ CONFIG_GATOS = EspecieConfig(
         Pergunta(texto="Meu gato dormiu bem durante a noite", invertida=False, peso=1.0),
     ]
 )
-
