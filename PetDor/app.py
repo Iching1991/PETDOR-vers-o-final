@@ -12,6 +12,7 @@ if str(root_path) not in sys.path:
 import streamlit as st
 from database.connection import init_database
 from database.migration import adicionar_colunas_desativacao
+from auth.user import buscar_usuario_por_id
 from config import APP_CONFIG
 
 # Configuração da página
@@ -25,14 +26,11 @@ st.set_page_config(
 
 def main():
     """Função principal do app"""
-    # Inicializa banco de dados
+    # Inicializa banco de dados e migrações
     if 'db_initialized' not in st.session_state:
         init_database()
+        adicionar_colunas_desativacao()  # Migração para colunas de desativação
         st.session_state['db_initialized'] = True
-
-    # Executa migrações (apenas uma vez por sessão)
-    if 'migracoes_executadas' not in st.session_state:
-        adicionar_colunas_desativacao()
         st.session_state['migracoes_executadas'] = True
 
     # Header
@@ -44,14 +42,24 @@ def main():
 
     if 'usuario_id' in st.session_state:
         # Usuário logado
-        st.sidebar.success(f"👋 {st.session_state.get('email', 'Usuário')}")
+        usuario_data = buscar_usuario_por_id(st.session_state['usuario_id'])
+
+        if usuario_data:
+            st.sidebar.success(f"👋 {usuario_data['nome']}")
+        else:
+            st.sidebar.success(f"👋 Usuário")
 
         pages = {
             "📋 Avaliar Pet": "pages/avaliacao.py",
             "📊 Histórico": "pages/historico.py",
             "👤 Minha Conta": "pages/conta.py",
-            "🚪 Sair": None
         }
+
+        # Adiciona Admin se for admin
+        if usuario_data and usuario_data.get('is_admin', False):
+            pages["🔐 Admin"] = "pages/admin.py"
+
+        pages["🚪 Sair"] = None
 
         for nome, pagina in pages.items():
             if pagina:
@@ -120,16 +128,19 @@ def main():
                     st.switch_page("pages/cadastro.py")
     else:
         # Dashboard para usuários logados
-        st.markdown("""
+        usuario_data = buscar_usuario_por_id(st.session_state['usuario_id'])
+        nome_usuario = usuario_data['nome'] if usuario_data else 'Usuário'
+
+        st.markdown(f"""
         <div style="text-align: center; padding: 2rem 1rem;">
             <h2 style="color: #2d3748;">
-                Olá, {nome}! 👋
+                Olá, {nome_usuario}! 👋
             </h2>
             <p style="color: #718096; font-size: 1.1rem;">
                 O que você gostaria de fazer hoje?
             </p>
         </div>
-        """.format(nome=st.session_state.get('nome', 'Usuário')), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
 
@@ -217,4 +228,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
