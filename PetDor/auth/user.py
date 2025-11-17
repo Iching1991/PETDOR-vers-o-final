@@ -221,7 +221,10 @@ def alterar_senha(usuario_id, senha_atual, nova_senha, confirmar_senha):
 
 def deletar_usuario(usuario_id, senha):
     """
-    Deleta a conta do usuário (desativa)
+    Desativa a conta do usuário (soft delete) e registra data/motivo.
+
+    Não deleta fisicamente do banco - apenas marca como inativo
+    e registra quando e por quê foi desativado para fins de auditoria.
 
     Args:
         usuario_id: ID do usuário
@@ -234,25 +237,39 @@ def deletar_usuario(usuario_id, senha):
         conn = conectar_db()
         cursor = conn.cursor()
 
-        # Busca usuário e senha
-        cursor.execute("SELECT senha_hash, email FROM usuarios WHERE id = ?", (usuario_id,))
+        # Busca senha e email
+        cursor.execute(
+            "SELECT senha_hash, email FROM usuarios WHERE id = ?",
+            (usuario_id,)
+        )
         resultado = cursor.fetchone()
 
         if not resultado:
             return False, "Usuário não encontrado"
 
+        senha_hash, email = resultado
+
         # Verifica senha
-        if not bcrypt.checkpw(senha.encode('utf-8'), resultado[0]):
+        if not bcrypt.checkpw(senha.encode("utf-8"), senha_hash):
             return False, "Senha incorreta"
 
-        # Desativa conta (não deleta fisicamente)
+        # Marca como inativo + registra data e motivo
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        motivo = "Autoexclusão pelo usuário"
+
         cursor.execute(
-            "UPDATE usuarios SET ativo = 0 WHERE id = ?",
-            (usuario_id,)
+            """
+            UPDATE usuarios
+               SET ativo = 0,
+                   data_desativacao = ?,
+                   motivo_desativacao = ?
+             WHERE id = ?
+            """,
+            (agora, motivo, usuario_id),
         )
 
         conn.commit()
-        logger.info(f"Conta desativada: {resultado[1]}")
+        logger.info(f"Conta desativada: {email} em {agora}")
         return True, "Conta desativada com sucesso"
 
     except Exception as e:
