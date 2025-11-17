@@ -259,9 +259,9 @@ def criar_compartilhamento(pet_id: int, tutor_id: int, profissional_id: int, tok
     try:
         data_compartilhamento = datetime.now().isoformat()
         cursor.execute("""
-            INSERT INTO compartilhamentos_pet (pet_id, tutor_id, profissional_id, data_compartilhamento, token_acesso, data_expiracao)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (pet_id, tutor_id, profissional_id, data_compartilhamento, token_acesso, data_expiracao))
+            INSERT INTO compartilhamentos_pet (pet_id, tutor_id, profissional_id, data_compartilhamento, ativo, token_acesso, data_expiracao)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (pet_id, tutor_id, profissional_id, data_compartilhamento, 1, token_acesso, data_expiracao))
         conn.commit()
         return cursor.lastrowid
     except sqlite3.IntegrityError:
@@ -356,3 +356,4 @@ def contar_notificacoes_nao_lidas(usuario_id: int) -> int:
     count = cursor.fetchone()[0]
     conn.close()
     return count
+
