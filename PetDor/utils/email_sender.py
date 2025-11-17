@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def enviar_email_reset(email_destino, token):
     """
-    Envia email de reset de senha via GoDaddy SMTP
+    Envia email de reset de senha via GoDaddy
 
     Args:
         email_destino: Email do destinatário
@@ -164,13 +164,11 @@ Equipe PETDor
         msg.attach(parte_texto)
         msg.attach(parte_html)
 
-        # Conecta ao servidor SMTP da GoDaddy (usa SSL na porta 465)
+        # Conecta ao servidor SMTP GoDaddy (usa SSL na porta 465)
         logger.info(f"Conectando ao servidor SMTP GoDaddy: {smtp_server}:{smtp_port}")
 
-        # Cria contexto SSL
         context = ssl.create_default_context()
 
-        # GoDaddy usa SMTP_SSL (porta 465), não STARTTLS
         with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
             server.login(email_remetente, senha_email)
             server.send_message(msg)
@@ -189,5 +187,3 @@ Equipe PETDor
     except Exception as e:
         logger.error(f"Erro inesperado ao enviar email: {e}")
         return False, "Erro ao enviar email. Tente novamente mais tarde."
-
-
