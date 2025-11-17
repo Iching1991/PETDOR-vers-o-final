@@ -24,3 +24,4 @@ def conectar_db():
     except Exception as e:
         logger.error(f"[ERRO] Falha ao conectar ao banco: {e}")
         raise
+
