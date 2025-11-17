@@ -1,5 +1,5 @@
 """
-Módulo de modelos e funções de acesso a dados do PETDor.
+Módulo de modelos e funções de acesso a dados do PETDOR.
 Contém funções para interagir com as tabelas do banco de dados.
 """
 
@@ -378,3 +378,4 @@ def get_estatisticas_usuario(usuario_id: int) -> Dict[str, Any]:
         "menor_percentual": menor_percentual,
         "media_percentual": media_percentual
     }
+
