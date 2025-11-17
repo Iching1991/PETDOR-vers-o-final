@@ -2,17 +2,25 @@
 Migrações do banco de dados PETDOR
 """
 
+import sys
 import sqlite3
 import logging
-from .connection import conectar
+from pathlib import Path
 from config import DATABASE_PATH
+
+# Ajusta o path do projeto
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
+from .connection import conectar  # ✅ Agora funciona corretamente
 
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------
-# 🔧 Funções auxiliares
-# ---------------------------------------------------------
+# ----------------------------------
+# Funções auxiliares
+# ----------------------------------
 def coluna_existe(cursor, tabela, coluna):
     cursor.execute(f"PRAGMA table_info({tabela})")
     colunas = [info[1] for info in cursor.fetchall()]
@@ -27,9 +35,9 @@ def adicionar_coluna(cursor, tabela, coluna, tipo):
         print(f"ℹ Coluna já existe na tabela {tabela}: {coluna}")
 
 
-# ---------------------------------------------------------
-# 🐾 MIGRAÇÕES PRINCIPAIS
-# ---------------------------------------------------------
+# ----------------------------------
+# Migrações das tabelas
+# ----------------------------------
 def criar_tabela_usuarios():
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -136,69 +144,25 @@ def criar_tabela_avaliacao_respostas():
         return False
 
 
-# ---------------------------------------------------------
-# 🛠 Ajustes posteriores
-# ---------------------------------------------------------
-def migracoes_extra():
-    """Adiciona colunas que podem ter faltado historicamente"""
-    try:
-        conn = conectar()
-        cursor = conn.cursor()
-
-        print("\n🔍 Verificando colunas extras da tabela 'pets'...")
-
-        extras_pets = {
-            "raca": "TEXT",
-            "data_nascimento": "TEXT",
-            "sexo": "TEXT",
-            "peso": "REAL"
-        }
-
-        for coluna, tipo in extras_pets.items():
-            adicionar_coluna(cursor, "pets", coluna, tipo)
-
-        conn.commit()
-        conn.close()
-        return True
-
-    except Exception as e:
-        print("❌ Erro nas migrações extras:", e)
-        return False
-
-
-# ---------------------------------------------------------
-# 🚀 EXECUTAR TODAS AS MIGRAÇÕES
-# ---------------------------------------------------------
+# ----------------------------------
+# Executor geral
+# ----------------------------------
 def migrar_banco_completo():
     print("\n🔄 Executando migrações completas do PETDOR...\n")
 
     migracoes = [
-        criar_tabela_usuarios,
-        criar_tabela_pets,
-        criar_tabela_avaliacoes,
-        criar_tabela_avaliacao_respostas,
-        migracoes_extra
+        ("Tabela de usuários", criar_tabela_usuarios),
+        ("Tabela de pets", criar_tabela_pets),
+        ("Tabela de avaliações", criar_tabela_avaliacoes),
+        ("Tabela de respostas", criar_tabela_avaliacao_respostas),
     ]
 
-    sucesso = 0
-    falhas = 0
+    for nome, func in migracoes:
+        print(f"\n📢 Migrando: {nome}")
+        func()
 
-    for funcao in migracoes:
-        nome = funcao.__name__
-        print(f"\n📋 Executando: {nome}...")
-        if funcao():
-            sucesso += 1
-        else:
-            falhas += 1
-
-    print("\n==============================================")
-    print(f"✅ Migrações bem-sucedidas: {sucesso}")
-    print(f"❌ Falhas: {falhas}")
-    print("==============================================\n")
-
-    return falhas == 0
+    print("\n🎉 Migrações concluídas!\n")
 
 
 if __name__ == "__main__":
     migrar_banco_completo()
-
