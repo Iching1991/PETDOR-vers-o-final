@@ -1,11 +1,11 @@
 """
-Módulo de banco de dados do PETDor.
+Módulo de gerenciamento de banco de dados do PETDor.
 
 Responsável por:
-- conexão com SQLite,
-- inicialização de tabelas,
-- migrações,
-- modelos de dados.
+- Conexão com SQLite
+- Inicialização de tabelas
+- Migrações de schema
+- Modelos de dados
 """
 
 from . import connection
