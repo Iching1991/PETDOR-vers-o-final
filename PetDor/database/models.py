@@ -357,3 +357,54 @@ def contar_notificacoes_nao_lidas(usuario_id: int) -> int:
     conn.close()
     return count
 
+def get_estatisticas_usuario(usuario_id: int):
+    """
+    Exemplo: Estatísticas fake do usuário.
+    Implemente a lógica real conforme for necessário.
+    """
+    # Retorne dados fictícios, structure como desejar!
+    return {
+        "total_pets": 0,
+        "total_avaliacoes": 0,
+        "maior_percentual": None,
+        "menor_percentual": None,
+        "media_percentual": None
+    }
+
+def get_estatisticas_usuario(usuario_id: int) -> Dict[str, Any]:
+    """
+    Retorna estatísticas básicas das avaliações e pets do usuário.
+    """
+    conn = conectar_db()
+    cursor = conn.cursor()
+
+    # Total de pets
+    cursor.execute("SELECT COUNT(*) FROM pets WHERE tutor_id = ?", (usuario_id,))
+    total_pets = cursor.fetchone()[0]
+
+    # Total de avaliações
+    cursor.execute("SELECT COUNT(*) FROM avaliacoes WHERE usuario_id = ?", (usuario_id,))
+    total_avaliacoes = cursor.fetchone()[0]
+
+    # Estatísticas de percentual de dor
+    cursor.execute("""
+        SELECT 
+            MAX(percentual_dor), 
+            MIN(percentual_dor), 
+            AVG(percentual_dor)
+        FROM avaliacoes 
+        WHERE usuario_id = ?
+    """, (usuario_id,))
+    maior_percentual, menor_percentual, media_percentual = cursor.fetchone()
+
+    conn.close()
+
+    return {
+        "total_pets": total_pets,
+        "total_avaliacoes": total_avaliacoes,
+        "maior_percentual": maior_percentual,
+        "menor_percentual": menor_percentual,
+        "media_percentual": media_percentual
+    }
+
+
