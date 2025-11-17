@@ -1,5 +1,6 @@
 """
 Aplicativo principal PETDor
+Sistema profissional de avaliação de dor em animais de companhia
 """
 import sys
 from pathlib import Path
@@ -11,7 +12,7 @@ if str(root_path) not in sys.path:
 
 import streamlit as st
 from database.connection import init_database
-from database.migration import adicionar_colunas_desativacao, adicionar_campo_admin
+from database.migration import migrar_banco_completo
 from auth.user import buscar_usuario_por_id
 from config import APP_CONFIG
 
@@ -26,13 +27,14 @@ st.set_page_config(
 
 def main():
     """Função principal do app"""
-    # Inicializa banco de dados e migrações
+
+    # Inicializa banco de dados e executa migrações
     if 'db_initialized' not in st.session_state:
-        init_database()
-        adicionar_colunas_desativacao()
-        adicionar_campo_admin()
-        st.session_state['db_initialized'] = True
-        st.session_state['migracoes_executadas'] = True
+        with st.spinner("Inicializando banco de dados..."):
+            init_database()
+            migrar_banco_completo()  # Executa todas as migrações
+            st.session_state['db_initialized'] = True
+            st.session_state['migracoes_executadas'] = True
 
     # Header
     st.title("🐾 " + APP_CONFIG['titulo'])
@@ -50,7 +52,7 @@ def main():
         else:
             st.sidebar.success(f"👋 Usuário")
 
-        # Links do menu lateral - ROTAS CORRETAS
+        # Links do menu lateral
         st.sidebar.markdown("""
         <a href="/avaliacao" target="_self">
             <button style="background: #4CAF50; color: white; padding: 10px; 
@@ -159,6 +161,8 @@ def main():
                     <li>📊 Histórico completo de avaliações</li>
                     <li>📄 Relatórios em PDF profissionais</li>
                     <li>🔒 Dados seguros e privados</li>
+                    <li>📧 Confirmação de email no cadastro</li>
+                    <li>👥 Perfis diferenciados (Tutor, Clínica, Veterinário)</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -314,8 +318,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-
-if __name__ == "__main__":
-    main()
 
