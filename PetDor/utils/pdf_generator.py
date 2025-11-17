@@ -1,171 +1,105 @@
 """
-Gerador de relatórios PDF
+Geração de relatórios em PDF
 """
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
 from fpdf import FPDF
 from datetime import datetime
 import os
-import logging
-from config import get_nivel_dor
-
-logger = logging.getLogger(__name__)
+import tempfile
 
 
-class RelatorioPDF(FPDF):
+class PDFRelatorio(FPDF):
+    """Classe customizada para relatórios PETDor"""
+
     def header(self):
-        logo_path = "assets/logo.png"
-        if os.path.exists(logo_path):
-            try:
-                self.image(logo_path, x=10, y=8, w=30)
-            except Exception:
-                pass
-        self.set_font("Arial", "B", 16)
-        self.set_text_color(43, 138, 239)
-        self.cell(0, 10, "PET DOR", ln=True, align="C")
-        self.set_font("Arial", "", 11)
-        self.set_text_color(100, 100, 100)
-        self.cell(0, 6, "Relatório de Avaliação de Dor", ln=True, align="C")
-        self.ln(8)
+        """Cabeçalho do PDF"""
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'PETDor - Relatório de Avaliação', 0, 1, 'C')
+        self.ln(5)
 
     def footer(self):
+        """Rodapé do PDF"""
         self.set_y(-15)
-        self.set_font("Arial", "I", 8)
-        self.set_text_color(128, 128, 128)
-        self.cell(
-            0,
-            10,
-            f"Página {self.page_no()} | PET DOR - Sistema de Avaliação de Dor Animal",
-            align="C",
-        )
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
 
-def gerar_relatorio_pdf(
-    pet_nome: str,
-    especie: str,
-    percentual: float,
-    pontuacao_total: int,
-    pontuacao_maxima: int,
-    usuario_nome: str,
-    data_avaliacao: str = None,
-    idade: float = None,
-) -> str:
+def gerar_relatorio_pdf(pet_nome, especie, percentual, pontuacao_total, 
+                        pontuacao_maxima, usuario_nome, idade):
     """
-    Gera relatório PDF da avaliação.
-    Retorna o caminho do arquivo gerado.
+    Gera relatório PDF da avaliação
+
+    Args:
+        pet_nome: Nome do pet
+        especie: Espécie do pet
+        percentual: Percentual de dor
+        pontuacao_total: Pontuação obtida
+        pontuacao_maxima: Pontuação máxima possível
+        usuario_nome: Nome do usuário/veterinário
+        idade: Idade do pet
+
+    Returns:
+        Caminho do arquivo PDF gerado
     """
-    try:
-        pdf = RelatorioPDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = PDFRelatorio()
+    pdf.add_page()
 
-        if not data_avaliacao:
-            data_avaliacao = datetime.now().strftime("%d/%m/%Y %H:%M")
+    # Informações do paciente
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Dados do Paciente', 0, 1)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 8, f'Nome: {pet_nome}', 0, 1)
+    pdf.cell(0, 8, f'Espécie: {especie}', 0, 1)
+    pdf.cell(0, 8, f'Idade: {idade} anos', 0, 1)
+    pdf.cell(0, 8, f'Data da Avaliação: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 1)
+    pdf.cell(0, 8, f'Avaliador: {usuario_nome}', 0, 1)
+    pdf.ln(10)
 
-        # Info paciente
-        pdf.set_font("Arial", "B", 13)
-        pdf.set_text_color(45, 55, 72)
-        pdf.cell(0, 8, "Informações do Paciente", ln=True)
-        pdf.ln(2)
+    # Resultado
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Resultado da Avaliação', 0, 1)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 8, f'Pontuação: {pontuacao_total}/{pontuacao_maxima}', 0, 1)
+    pdf.cell(0, 8, f'Percentual de Dor: {percentual:.1f}%', 0, 1)
+    pdf.ln(5)
 
-        pdf.set_font("Arial", "", 11)
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(50, 6, "Data da Avaliação:", 0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, data_avaliacao, ln=True)
+    # Interpretação
+    if percentual < 30:
+        nivel = "Baixo"
+        cor = (40, 167, 69)  # Verde
+        recomendacao = "Monitoramento de rotina. Sem sinais significativos de dor."
+    elif percentual < 60:
+        nivel = "Moderado"
+        cor = (255, 193, 7)  # Amarelo
+        recomendacao = "Atenção necessária. Considere intervenção veterinária."
+    else:
+        nivel = "Alto"
+        cor = (220, 53, 69)  # Vermelho
+        recomendacao = "Intervenção urgente recomendada. Consulte veterinário imediatamente."
 
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(50, 6, "Responsável:", 0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, usuario_nome, ln=True)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(*cor)
+    pdf.cell(0, 8, f'Nível de Dor: {nivel}', 0, 1)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', '', 11)
+    pdf.multi_cell(0, 6, f'Recomendação: {recomendacao}')
+    pdf.ln(10)
 
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(50, 6, "Nome do Paciente:", 0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, pet_nome, ln=True)
+    # Observações
+    pdf.set_font('Arial', 'I', 10)
+    pdf.multi_cell(0, 5, 
+        'Observação: Este relatório é uma ferramenta de apoio à decisão clínica. '
+        'A avaliação final deve ser realizada por um médico veterinário qualificado.')
 
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(50, 6, "Espécie:", 0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, especie, ln=True)
+    # Salva em arquivo temporário
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    pdf.output(temp_file.name)
 
-        if idade is not None:
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(50, 6, "Idade:", 0)
-            pdf.set_font("Arial", "B", 11)
-            pdf.cell(0, 6, f"{idade} anos", ln=True)
-
-        pdf.ln(8)
-
-        # Resultado
-        pdf.set_font("Arial", "B", 13)
-        pdf.set_text_color(45, 55, 72)
-        pdf.cell(0, 8, "Resultado da Avaliação", ln=True)
-        pdf.ln(2)
-
-        nivel = get_nivel_dor(percentual)
-
-        if percentual < 30:
-            pdf.set_fill_color(40, 167, 69)
-        elif percentual < 60:
-            pdf.set_fill_color(255, 193, 7)
-        else:
-            pdf.set_fill_color(220, 53, 69)
-
-        pdf.set_font("Arial", "B", 22)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 16, f"Nível de dor: {percentual:.1f}%", ln=True, fill=True, align="C")
-        pdf.ln(4)
-
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(0, 6, f"Pontuação: {pontuacao_total} / {pontuacao_maxima}", ln=True)
-
-        if percentual < 30:
-            classificacao = "BAIXO"
-        elif percentual < 60:
-            classificacao = "MODERADO"
-        else:
-            classificacao = "ALTO"
-
-        pdf.set_font("Arial", "B", 11)
-        pdf.set_text_color(45, 55, 72)
-        pdf.cell(0, 8, f"Classificação: {classificacao}", ln=True)
-
-        pdf.ln(6)
-
-        # Recomendações
-        pdf.set_font("Arial", "B", 13)
-        pdf.set_text_color(45, 55, 72)
-        pdf.cell(0, 8, "Recomendação Clínica", ln=True)
-        pdf.ln(2)
-
-        pdf.set_font("Arial", "", 11)
-        pdf.set_text_color(0, 0, 0)
-        pdf.multi_cell(0, 5, nivel["texto"])
-
-        pdf.ln(8)
-
-        pdf.set_font("Arial", "I", 9)
-        pdf.set_text_color(100, 100, 100)
-        pdf.multi_cell(
-            0,
-            4,
-            "IMPORTANTE: Este relatório é uma ferramenta de triagem e não substitui a "
-            "avaliação clínica de um médico veterinário. Em caso de dúvidas, sinais de dor "
-            "intensa ou piora no quadro, procure atendimento veterinário imediatamente.",
-        )
-
-        # Salva
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_pet = pet_nome.replace(" ", "_")
-        filename = f"petdor_{safe_pet}_{timestamp}.pdf"
-
-        os.makedirs("temp", exist_ok=True)
-        filepath = os.path.join("temp", filename)
-        pdf.output(filepath)
-        logger.info(f"PDF gerado: {filepath}")
-        return filepath
-
-    except Exception as e:
-        logger.error(f"Erro ao gerar PDF: {e}")
-        raise
-
+    return temp_file.name
