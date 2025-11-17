@@ -1,6 +1,6 @@
 """
-Módulo de migração do banco PETDOR.
-Unifica criação de tabelas e atualizações.
+Sistema de migração do banco de dados PETDOR.
+Criação e manutenção das tabelas oficiais do sistema.
 """
 
 import logging
@@ -10,14 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 def migrar_banco_completo():
-    """Cria ou atualiza todas as tabelas do sistema PETDOR."""
+    """Executa todas as migrações e cria tabelas se necessário."""
     try:
         conn = conectar_db()
         c = conn.cursor()
 
-        # -----------------------------
-        # Tabela usuários
-        # -----------------------------
+        # ---------------------- #
+        # Tabela de Usuários
+        # ---------------------- #
         c.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,9 +29,9 @@ def migrar_banco_completo():
             )
         """)
 
-        # -----------------------------
+        # ---------------------- #
         # Pets
-        # -----------------------------
+        # ---------------------- #
         c.execute("""
             CREATE TABLE IF NOT EXISTS pets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,9 +46,9 @@ def migrar_banco_completo():
             )
         """)
 
-        # -----------------------------
-        # Avaliações de dor
-        # -----------------------------
+        # ---------------------- #
+        # Avaliações
+        # ---------------------- #
         c.execute("""
             CREATE TABLE IF NOT EXISTS avaliacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,9 +62,9 @@ def migrar_banco_completo():
             )
         """)
 
-        # -----------------------------
+        # ---------------------- #
         # Recuperação de senha
-        # -----------------------------
+        # ---------------------- #
         c.execute("""
             CREATE TABLE IF NOT EXISTS password_resets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,5 +84,6 @@ def migrar_banco_completo():
         return True
 
     except Exception as e:
-        logger.error(f"Erro na migração do banco: {e}")
+        logger.error(f"Erro na migração: {e}")
         raise
+
