@@ -6,8 +6,7 @@ Contém funções para interagir com as tabelas do banco de dados.
 import sqlite3
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-
-from database.connection import conectar_db # Importa a função de conexão
+from database.connection import conectar_db
 
 # --- Funções para Usuários ---
 
@@ -40,9 +39,8 @@ def criar_usuario(nome: str, email: str, senha_hash: str, tipo_usuario: str = 't
             VALUES (?, ?, ?, ?, ?, ?)
         """, (nome, email, senha_hash, data_registro, tipo_usuario, token_confirmacao))
         conn.commit()
-        return cursor.lastrowid # Retorna o ID do novo usuário
+        return cursor.lastrowid
     except sqlite3.IntegrityError:
-        # Email já existe
         return None
     finally:
         conn.close()
@@ -59,7 +57,7 @@ def atualizar_usuario(usuario_id: int, **kwargs) -> bool:
 
     if not set_clauses:
         conn.close()
-        return False # Nada para atualizar
+        return False
 
     values.append(usuario_id)
     query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = ?"
@@ -68,8 +66,7 @@ def atualizar_usuario(usuario_id: int, **kwargs) -> bool:
         cursor.execute(query, tuple(values))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao atualizar usuário: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -91,8 +88,7 @@ def confirmar_email_usuario(token_confirmacao: str) -> bool:
         cursor.execute("UPDATE usuarios SET email_confirmado = 1, token_confirmacao = NULL WHERE token_confirmacao = ?", (token_confirmacao,))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao confirmar email: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -110,8 +106,7 @@ def criar_pet(tutor_id: int, nome: str, especie: str, raca: str = None, data_nas
         """, (tutor_id, nome, especie, raca, data_nascimento, sexo, peso, observacoes))
         conn.commit()
         return cursor.lastrowid
-    except Exception as e:
-        print(f"Erro ao criar pet: {e}")
+    except Exception:
         return None
     finally:
         conn.close()
@@ -155,8 +150,7 @@ def atualizar_pet(pet_id: int, **kwargs) -> bool:
         cursor.execute(query, tuple(values))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao atualizar pet: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -169,8 +163,7 @@ def deletar_pet(pet_id: int) -> bool:
         cursor.execute("DELETE FROM pets WHERE id = ?", (pet_id,))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao deletar pet: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -230,8 +223,7 @@ def deletar_avaliacao(avaliacao_id: int) -> bool:
         cursor.execute("DELETE FROM avaliacoes WHERE id = ?", (avaliacao_id,))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao deletar avaliação: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -265,7 +257,6 @@ def criar_compartilhamento(pet_id: int, tutor_id: int, profissional_id: int, tok
         conn.commit()
         return cursor.lastrowid
     except sqlite3.IntegrityError:
-        print("Erro: Token de acesso já existe ou outra violação de integridade.")
         return None
     finally:
         conn.close()
@@ -287,8 +278,7 @@ def desativar_compartilhamento(compartilhamento_id: int) -> bool:
         cursor.execute("UPDATE compartilhamentos_pet SET ativo = 0 WHERE id = ?", (compartilhamento_id,))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao desativar compartilhamento: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -307,8 +297,7 @@ def criar_notificacao(usuario_id: int, pet_id: int, tipo: str, mensagem: str, ni
         """, (usuario_id, pet_id, avaliacao_id, tipo, mensagem, nivel_prioridade, data_criacao))
         conn.commit()
         return cursor.lastrowid
-    except Exception as e:
-        print(f"Erro ao criar notificação: {e}")
+    except Exception:
         return None
     finally:
         conn.close()
@@ -342,8 +331,7 @@ def marcar_notificacao_como_lida(notificacao_id: int) -> bool:
         cursor.execute("UPDATE notificacoes SET lida = 1, data_leitura = ? WHERE id = ?", (data_leitura, notificacao_id))
         conn.commit()
         return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Erro ao marcar notificação como lida: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
@@ -357,24 +345,8 @@ def contar_notificacoes_nao_lidas(usuario_id: int) -> int:
     conn.close()
     return count
 
-def get_estatisticas_usuario(usuario_id: int):
-    """
-    Exemplo: Estatísticas fake do usuário.
-    Implemente a lógica real conforme for necessário.
-    """
-    # Retorne dados fictícios, structure como desejar!
-    return {
-        "total_pets": 0,
-        "total_avaliacoes": 0,
-        "maior_percentual": None,
-        "menor_percentual": None,
-        "media_percentual": None
-    }
-
 def get_estatisticas_usuario(usuario_id: int) -> Dict[str, Any]:
-    """
-    Retorna estatísticas básicas das avaliações e pets do usuário.
-    """
+    """Retorna estatísticas básicas das avaliações e pets do usuário."""
     conn = conectar_db()
     cursor = conn.cursor()
 
@@ -406,5 +378,3 @@ def get_estatisticas_usuario(usuario_id: int) -> Dict[str, Any]:
         "menor_percentual": menor_percentual,
         "media_percentual": media_percentual
     }
-
-
