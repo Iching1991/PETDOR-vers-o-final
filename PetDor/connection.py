@@ -1,57 +1,52 @@
 """
-Gerenciamento de conexão com banco de dados SQLite do PETDOR
+Gerenciamento da conexão com o banco SQLite do PETDOR.
+Centraliza:
+- Caminho do banco
+- Conexão segura
+- Inicialização mínima
 """
 
 import os
 import sys
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------
-# 🔍 Localiza automaticamente o config.py
+# 📌 Localização automática do config.py
 # -----------------------------------------
-root_path = Path(__file__).resolve().parent.parent
+root_path = Path(__file__).resolve().parent
 
-# Garante que a raiz do projeto está no Python Path
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+project_root = root_path.parent  # pasta PetDor/
+
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 try:
     from config import DATABASE_PATH as DB_PATH_RAW
-except ModuleNotFoundError:
+except Exception:
     raise ModuleNotFoundError(
-        "❗ ERRO: Não foi possível importar 'DATABASE_PATH' do config.py.\n"
-        "Verifique se existe um arquivo config.py ao lado do app.py.\n"
-        "Estrutura correta:\n\n"
+        "\n❗ ERRO: config.py não encontrado!\n"
+        "Estrutura correta:\n"
         "PetDor/\n"
         "│ app.py\n"
-        "│ config.py\n"
+        "│ config.py   ← obrigatório\n"
         "└── database/\n"
     )
 
-# -----------------------------------------
-# 📌 Caminho absoluto e seguro do banco
-# -----------------------------------------
-# Ex.: se DB_PATH_RAW = "petdor.db"
-DATABASE_PATH = str((root_path / DB_PATH_RAW).resolve())
+# Caminho absoluto
+DATABASE_PATH = str((project_root / DB_PATH_RAW).resolve())
 
 
 # -----------------------------------------
-# 🔌 Função de conexão
+# 🔌 Conexão com o banco
 # -----------------------------------------
 def conectar_db():
-    """
-    Conecta ao banco de dados SQLite.
-    Returns:
-        sqlite3.Connection
-    """
+    """Retorna uma conexão SQLite já configurada."""
     try:
         db_dir = os.path.dirname(DATABASE_PATH)
-
-        # Cria diretório se necessário (quando path contém pasta, ex: data/petdor.db)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
@@ -60,89 +55,38 @@ def conectar_db():
         return conn
 
     except Exception as e:
-        logger.error(f"Erro ao conectar ao banco: {e}")
+        logger.error(f"Erro ao conectar no banco: {e}")
         raise
 
 
 # -----------------------------------------
-# 🏗 Inicialização e criação das tabelas
+# 🏗 Inicialização mínima (somente segurança)
 # -----------------------------------------
 def init_database():
-    """Cria todas as tabelas básicas se não existirem."""
+    """
+    Cria estrutura básica obrigatória:
+    - Apenas tabela de controle se necessário
+    Migrações FARÃO o resto.
+    """
     try:
         conn = conectar_db()
         cursor = conn.cursor()
 
-        # Usuários
+        # tabela "migrations" controla quais migrações já rodaram
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
+            CREATE TABLE IF NOT EXISTS migrations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                senha_hash TEXT NOT NULL,
-                data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
-                ativo INTEGER DEFAULT 1
-            )
-        """)
-
-        # Pets
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tutor_id INTEGER NOT NULL,
-                nome TEXT NOT NULL,
-                especie TEXT NOT NULL,
-                raca TEXT,
-                idade INTEGER,
-                peso REAL,
-                data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
-        """)
-
-        # Avaliações
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS avaliacoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pet_id INTEGER NOT NULL,
-                usuario_id INTEGER NOT NULL,
-                percentual_dor REAL NOT NULL,
-                observacoes TEXT,
-                data_avaliacao TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
-        """)
-
-        # Reset de senha
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS password_resets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id INTEGER NOT NULL,
-                token TEXT UNIQUE NOT NULL,
-                expires_at TEXT NOT NULL,
-                used INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                nome TEXT UNIQUE NOT NULL,
+                data_execucao TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
         conn.commit()
         conn.close()
 
-        logger.info("Banco de dados inicializado com sucesso!")
+        logger.info("Banco inicializado (estrutura mínima).")
         return True
 
     except Exception as e:
-        logger.error(f"Erro ao inicializar banco: {e}")
+        logger.error(f"Erro no init_database(): {e}")
         return False
-
-
-if __name__ == "__main__":
-    # Execução manual no terminal
-    if init_database():
-        print("Banco de dados PETDOR inicializado com sucesso!")
-    else:
-        print("Erro ao inicializar banco de dados.")
-
-
