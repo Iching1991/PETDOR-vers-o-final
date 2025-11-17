@@ -9,27 +9,28 @@ CONFIG_CAES = EspecieConfig(
     escala_min=0,
     escala_max=7,
     descricao="Avaliação de dor em cães - Escala de 0 (nunca) a 7 (sempre)",
+    opcoes_escala=["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre", "Quase Sempre", "Sempre"], # Ajustado para 0-7
     perguntas=[
         # Energia e Atividade
-        Pergunta(texto="Meu cão pouca energia", invertida=True),
-        Pergunta(texto="Meu cão foi brincalhão", invertida=False),
-        Pergunta(texto="Meu cão fez as suas atividades favoritas", invertida=False),
+        Pergunta(texto="Meu cão pouca energia", invertida=True, peso=1.0),
+        Pergunta(texto="Meu cão foi brincalhão", invertida=False, peso=1.0),
+        Pergunta(texto="Meu cão fez as suas atividades favoritas", invertida=False, peso=1.0),
         # Alimentação
-        Pergunta(texto="O apetite do meu cão reduziu", invertida=True),
-        Pergunta(texto="Meu cão comeu normalmente a sua comida favorita", invertida=False),
+        Pergunta(texto="O apetite do meu cão reduziu", invertida=True, peso=1.0),
+        Pergunta(texto="Meu cão comeu normalmente a sua comida favorita", invertida=False, peso=1.0),
         # Mobilidade
-        Pergunta(texto="Meu cão reluta para levantar", invertida=True),
-        Pergunta(texto="Meu cão teve problemas para levantar-se ou deitar-se", invertida=True),
-        Pergunta(texto="Meu cão teve problemas para caminhar", invertida=True),
-        Pergunta(texto="Meu cão caiu ou perdeu o equilíbrio", invertida=True),
+        Pergunta(texto="Meu cão reluta para levantar", invertida=True, peso=1.0),
+        Pergunta(texto="Meu cão teve problemas para levantar-se ou deitar-se", invertida=True, peso=1.0),
+        Pergunta(texto="Meu cão teve problemas para caminhar", invertida=True, peso=1.0),
+        Pergunta(texto="Meu cão caiu ou perdeu o equilíbrio", invertida=True, peso=1.0),
         # Comportamento Social
-        Pergunta(texto="Meu cão gosta de estar perto de mim", invertida=False),
-        Pergunta(texto="Meu cão mostrou uma quantidade normal de afeto", invertida=False),
-        Pergunta(texto="Meu cão gostou de ser tocado ou acariciado", invertida=False),
+        Pergunta(texto="Meu cão gosta de estar perto de mim", invertida=False, peso=1.0),
+        Pergunta(texto="Meu cão mostrou uma quantidade normal de afeto", invertida=False, peso=1.0),
+        Pergunta(texto="Meu cão gostou de ser tocado ou acariciado", invertida=False, peso=1.0),
         # Comportamento Geral
-        Pergunta(texto="Meu cão agiu normalmente", invertida=False),
-        Pergunta(texto="Meu cão teve problemas para ficar confortável", invertida=True),
+        Pergunta(texto="Meu cão agiu normalmente", invertida=False, peso=1.0),
+        Pergunta(texto="Meu cão teve problemas para ficar confortável", invertida=True, peso=1.0),
         # Sono
-        Pergunta(texto="Meu cão dormiu bem durante a noite", invertida=False),
+        Pergunta(texto="Meu cão dormiu bem durante a noite", invertida=False, peso=1.0),
     ]
 )
