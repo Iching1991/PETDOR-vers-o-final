@@ -2,18 +2,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
 # Diretório raiz do projeto
 ROOT_DIR = Path(__file__).parent
 
-# Banco de dados
-# Você pode usar variável de ambiente para mudar facilmente o local do banco sem alterar o código
-DATABASE_PATH = os.getenv("DATABASE_PATH", "C:/Databases/petdor.db") 
+# Caminho do banco de dados
+# Usa variável de ambiente para permitir flexibilização
+DATABASE_PATH = os.getenv("DATABASE_PATH", "C:/Databases/petdor.db")
 
 # Configurações do app
 APP_CONFIG = {
-    'titulo': 'PETDor',
+    'titulo': 'PETDOR',
     'versao': '1.0.0',
     'autor': 'Salute Vitae AI'
 }
@@ -26,5 +27,3 @@ EMAIL_CONFIG = {
     'usuario': os.getenv('EMAIL_USER', 'contato@petdor.app'),
     'senha': os.getenv('EMAIL_PASSWORD', '')
 }
-
-
