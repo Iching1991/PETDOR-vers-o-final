@@ -1,219 +1,167 @@
 """
 Aplicativo principal PETDOR
-Sistema profissional de avaliação de dor em animais de companhia
+Versão com Dark Mode, Mobile-friendly e tema PETDor
 """
 
 import sys
 from pathlib import Path
 import streamlit as st
 
-# -----------------------------------------------------------
-# CONFIGURAÇÃO DO PATH DO PROJETO
-# -----------------------------------------------------------
+# Ajusta path do projeto
 root_path = Path(__file__).parent
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
-from database.connection import conectar_db
-from database.migration import criar_tabelas
 
-# Inicializa o banco
-conectar_db()
-criar_tabelas()
+# UI styles and assets
+from styles import carregar_css
 
-# -----------------------------------------------------------
-# MIGRAÇÃO DO BANCO (executa apenas 1 vez no startup)
-# -----------------------------------------------------------
-from database.migration import migrar_banco_completo
-migrar_banco_completo()
-
-# -----------------------------------------------------------
-# IMPORTAÇÕES DO SISTEMA
-# -----------------------------------------------------------
-from database.connection import init_database
+# Import database functions (no execution on import)
+from database.connection import conectar_db, init_database
+from database.migration import criar_tabelas, migrar_banco_completo
 from auth.user import buscar_usuario_por_id
 from config import APP_CONFIG
 
-# -----------------------------------------------------------
-# CONFIGURAÇÃO DO STREAMLIT
-# -----------------------------------------------------------
+# Streamlit config (theme is also set via .streamlit/config.toml)
 st.set_page_config(
-    page_title=APP_CONFIG['titulo'],
+    page_title=APP_CONFIG.get("titulo", "PETDor"),
     page_icon="🐾",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# -----------------------------------------------------------
-# FUNÇÃO PRINCIPAL
-# -----------------------------------------------------------
-def main():
-    """Função principal do app."""
+# Load CSS
+carregar_css()
 
-    # Inicializa banco apenas uma vez
-    if 'db_initialized' not in st.session_state:
-        with st.spinner("Inicializando sistema..."):
-            init_database()
-            st.session_state['db_initialized'] = True
+# Small helper to render the logo
+def render_logo(width=220):
+    try:
+        with open(Path(__file__).parent / "assets" / "logo.svg", "r", encoding="utf-8") as f:
+            svg = f.read()
+            st.markdown(f"<div style='display:flex; align-items:center; gap:12px'>{svg}</div>", unsafe_allow_html=True)
+    except Exception:
+        st.title("🐾 " + APP_CONFIG.get("titulo", "PETDor"))
 
-    # ================================================
-    # REDIRECIONAMENTO APÓS LOGIN
-    # ================================================
-    if st.session_state.get("redirect_to_avaliacao", False):
-        st.session_state["redirect_to_avaliacao"] = False
-        st.switch_page("pages/avaliacao.py")
-        st.stop()
+# Card component (mobile-friendly)
+def card(emoji, title, href):
+    st.markdown(f"""
+    <div class="petdor-card">
+        <div style="font-size:2.2rem;margin-bottom:8px;">{emoji}</div>
+        <h3 style="margin:0 0 8px 0;">{title}</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(f"[Ir →]({href})", unsafe_allow_html=True)
 
-    # --------------------------------------------------
-    # VERIFICA LOGIN
-    # --------------------------------------------------
-    usuario_id = st.session_state.get("usuario_id")
-
-    # Usuário não logado → página inicial + menu básico
-    if not usuario_id:
-        exibir_home_publica()
-        return
-
-    # Carrega dados do usuário
-    usuario = buscar_usuario_por_id(usuario_id)
-
-    if not usuario:
-        st.error("Erro ao carregar usuário. Faça login novamente.")
-        st.session_state.clear()
-        st.switch_page("pages/login.py")
-        return
-
-    # Renderiza a interface principal
-    exibir_dashboard(usuario)
-
-
-# ============================================================
-# PÁGINA PÚBLICA (Sem login)
-# ============================================================
 def exibir_home_publica():
+    st.markdown("<div style='display:flex;align-items:center;gap:16px'>", unsafe_allow_html=True)
+    render_logo()
+    st.markdown(f"<div style='margin-left:8px'><h2 style='margin:0;color:#E6EEF8'>{APP_CONFIG.get('titulo','PETDor')}</h2><div class='muted'>{APP_CONFIG.get('tagline','Avaliação profissional de dor em animais')}</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.title("🐾 Bem-vindo ao PETDor")
-    st.markdown("### Sistema profissional de avaliação de dor em animais de companhia")
     st.markdown("---")
-
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #AEE3FF, #C7F9CC); 
-                padding: 2rem; border-radius: 15px; margin: 2rem 0;">
-        <h3 style="color: #2d3748; text-align: center; margin-bottom: 1.5rem;">
-            ✨ Recursos Principais
-        </h3>
-        <ul style="color: #4a5568; font-size: 1.1rem; line-height: 2;">
-            <li>📋 Avaliações baseadas em escalas científicas</li>
-            <li>🐕 Suporte para cães e gatos</li>
-            <li>📊 Histórico completo de avaliações</li>
-            <li>📄 Relatórios em PDF profissionais</li>
-            <li>🔒 Dados seguros e privados</li>
-            <li>👥 Perfis para Tutores, Clínicas e Veterinários</li>
-        </ul>
+    <div class="petdor-card">
+      <h3 style="margin-top:0">✨ Recursos Principais</h3>
+      <ul class="muted">
+        <li>📋 Avaliações baseadas em escalas científicas</li>
+        <li>🐕 Suporte para cães e gatos</li>
+        <li>📊 Histórico completo de avaliações</li>
+        <li>📄 Relatórios em PDF profissionais</li>
+        <li>🔒 Dados seguros e privados</li>
+      </ul>
     </div>
     """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
-
     with col1:
-        st.page_link("pages/login.py", label="🔐 Fazer Login", icon="🔐", use_container_width=True)
-
+        st.markdown("<div class='petdor-cta'>", unsafe_allow_html=True)
+        if st.button("🔐 Fazer Login", key="login_cta"):
+            st.experimental_set_query_params(page="login")
+            st.experimental_rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
     with col2:
-        st.page_link("pages/cadastro.py", label="📝 Criar Conta", icon="📝", use_container_width=True)
+        st.markdown("<div class='petdor-cta'>", unsafe_allow_html=True)
+        if st.button("📝 Criar Conta", key="cadastro_cta"):
+            st.experimental_set_query_params(page="cadastro")
+            st.experimental_rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-
-# ============================================================
-# DASHBOARD DO USUÁRIO LOGADO
-# ============================================================
 def exibir_dashboard(usuario):
-
-    nome = usuario["nome"]
-    tipo = usuario.get("tipo_usuario", "tutor").title()
-
-    st.title(f"🐾 Olá, {nome}!")
-    st.markdown(f"### Perfil: **{tipo}**")
-    st.markdown("O que você gostaria de fazer hoje? 👇")
+    render_logo(180)
+    st.markdown(f"### Olá, **{usuario.get('nome','Usuário')}** 👋")
+    st.markdown(f"<div class='muted'>Perfil: {usuario.get('tipo_usuario','tutor').title()}</div>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # --------------------------------------------------
-    # MENU LATERAL
-    # --------------------------------------------------
+    # Sidebar actions
     st.sidebar.title("Navegação")
-    st.sidebar.success(f"👋 {nome}")
-
-    st.sidebar.page_link("pages/avaliacao.py", label="📋 Avaliar Pet", use_container_width=True)
-    st.sidebar.page_link("pages/historico.py", label="📊 Histórico", use_container_width=True)
-    st.sidebar.page_link("pages/conta.py", label="👤 Minha Conta", use_container_width=True)
-
+    st.sidebar.markdown(f"👋 {usuario.get('nome','Usuário')}")
+    if st.sidebar.button("📋 Avaliar Pet", use_container_width=True):
+        st.experimental_set_query_params(page="avaliacao")
+        st.experimental_rerun()
+    if st.sidebar.button("📊 Histórico", use_container_width=True):
+        st.experimental_set_query_params(page="historico")
+        st.experimental_rerun()
+    if st.sidebar.button("👤 Minha Conta", use_container_width=True):
+        st.experimental_set_query_params(page="conta")
+        st.experimental_rerun()
     if usuario.get("is_admin"):
-        st.sidebar.page_link("pages/admin.py", label="🔐 Administração", use_container_width=True)
-
+        if st.sidebar.button("🔐 Administração", use_container_width=True):
+            st.experimental_set_query_params(page="admin")
+            st.experimental_rerun()
     if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.clear()
-        st.rerun()
+        st.experimental_rerun()
 
-    # --------------------------------------------------
-    # Cards principais
-    # --------------------------------------------------
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
+    # Main action cards (responsive)
+    cols = st.columns([1,1,1])
+    with cols[0]:
         card("📋", "Nova Avaliação", "/avaliacao")
-
-    with col2:
+    with cols[1]:
         card("📊", "Histórico", "/historico")
-
-    with col3:
+    with cols[2]:
         card("👤", "Minha Conta", "/conta")
 
-    # --------------------------------------------------
-    # Estatísticas rápidas
-    # --------------------------------------------------
+    # Stats
     try:
         from database.models import get_estatisticas_usuario
         stats = get_estatisticas_usuario(usuario["id"])
-
-        if stats and stats["total_avaliacoes"] > 0:
+        if stats and stats.get("total_avaliacoes",0) > 0:
             st.markdown("### 📈 Suas Estatísticas")
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric("Avaliações Realizadas", stats["total_avaliacoes"])
-            col2.metric("Pacientes Únicos", stats["total_pets"])
-            col3.metric("Média de Dor", f"{stats['media_percentual']:.1f}%")
-    except:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Avaliações", stats.get("total_avaliacoes",0))
+            c2.metric("Pacientes", stats.get("total_pets",0))
+            c3.metric("Média de Dor", f"{stats.get('media_percentual',0):.1f}%")
+    except Exception:
         st.info("📊 Estatísticas aparecerão após sua primeira avaliação.")
 
-    # --------------------------------------------------
-    # Rodapé
-    # --------------------------------------------------
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
+def main():
+    # Inicializa DB e migrações apenas 1x por sessão
+    if "db_initialized" not in st.session_state:
+        with st.spinner("Inicializando banco de dados..."):
+            conectar_db()
+            criar_tabelas()
+            migrar_banco_completo()
+            init_database()
+        st.session_state["db_initialized"] = True
 
-    col1.write(f"**Versão:** {APP_CONFIG['versao']}")
-    col2.write(f"**Autor:** {APP_CONFIG['autor']}")
-    col3.write("📚 Documentação | 💬 Suporte")
+    # Optional: redirect flag
+    if st.session_state.get("redirect_to_avaliacao"):
+        st.session_state["redirect_to_avaliacao"] = False
+        st.experimental_set_query_params(page="avaliacao")
+        st.experimental_rerun()
 
+    usuario_id = st.session_state.get("usuario_id")
+    if not usuario_id:
+        exibir_home_publica()
+        return
 
-# ============================================================
-# COMPONENTE DE CARD (VISUAL)
-# ============================================================
-def card(emoji, titulo, link):
-    st.markdown(f"""
-    <div style="background: white; padding: 2rem; border-radius: 15px; 
-                text-align: center; box-shadow: 0 3px 12px rgba(0,0,0,0.08); 
-                margin-bottom: 1rem;">
-        <div style="font-size: 3rem;">{emoji}</div>
-        <h3 style="margin-top: 0.5rem; color: #2d3748;">{titulo}</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    usuario = buscar_usuario_por_id(usuario_id)
+    if not usuario:
+        st.error("Erro ao carregar usuário. Faça login novamente.")
+        st.session_state.clear()
+        st.experimental_rerun()
+        return
 
-    st.link_button(titulo, link, use_container_width=True)
+    exibir_dashboard(usuario)
 
-
-# -----------------------------------------------------------
-# EXECUÇÃO DO APP
-# -----------------------------------------------------------
 if __name__ == "__main__":
     main()
-
-
-
