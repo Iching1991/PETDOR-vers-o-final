@@ -1,5 +1,5 @@
 """
-Gerenciamento de usuários
+Gerenciamento de usuários do PETDor
 """
 import sys
 from pathlib import Path
@@ -33,7 +33,7 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha, tipo_usuario="tutor",
         senha: Senha do usuário
         confirmar_senha: Confirmação da senha
         tipo_usuario: Tipo (tutor, clinica, veterinario)
-        dados_extras: Dict com dados adicionais
+        dados_extras: Dict com dados adicionais (cnpj, endereco, crmv, especialidade)
 
     Returns:
         Tupla (sucesso, mensagem)
@@ -49,18 +49,26 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha, tipo_usuario="tutor",
         if len(senha) < 6:
             return False, "A senha deve ter pelo menos 6 caracteres"
 
-        # Formata dados
+        # Formata dados (Title Case para nome, minúsculo para email)
         nome = nome.strip().title()
         email = email.strip().lower()
+
+        # Valida tipo de usuário
+        tipos_validos = ['tutor', 'clinica', 'veterinario']
+        if tipo_usuario not in tipos_validos:
+            return False, "Tipo de usuário inválido"
 
         # Hash da senha
         senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt())
 
         # Prepara dados extras
-        cnpj = dados_extras.get('cnpj') if dados_extras else None
-        endereco = dados_extras.get('endereco') if dados_extras else None
-        crmcrmv') if dados_extras else None
-        especialidade = dados_extras.get('especialidade') if dados_extras else None
+        if dados_extras is None:
+            dados_extras = {}
+
+        cnpj = dados_extras.get('cnpj')
+        endereco = dados_extras.get('endereco')
+        crmv = dados_extras.get('crmv')
+        especialidade = dados_extras.get('especialidade')
 
         # Conecta ao banco
         conn = conectar_db()
@@ -72,16 +80,13 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha, tipo_usuario="tutor",
             conn.close()
             return False, "Este email já está cadastrado"
 
-        # Insere usuário
-        data_criacao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Verifica quais colunas existem
+        # Verifica quais colunas existem na tabela
         cursor.execute("PRAGMA table_info(usuarios)")
         colunas_existentes = [col[1] for col in cursor.fetchall()]
 
-        # Monta query baseado nas colunas disponíveis
+        # Monta query dinamicamente baseado nas colunas disponíveis
         campos = ['nome', 'email', 'senha_hash', 'data_criacao', 'ativo']
-        valores = [nome, email, senha_hash, data_criacao, 1]
+        valores = [nome, email, senha_hash, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 1]
 
         if 'tipo_usuario' in colunas_existentes:
             campos.append('tipo_usuario')
@@ -107,35 +112,40 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha, tipo_usuario="tutor",
             campos.append('email_confirmado')
             valores.append(0)
 
+        # Monta e executa query
         placeholders = ', '.join(['?' for _ in campos])
         campos_str = ', '.join(campos)
-
         query = f"INSERT INTO usuarios ({campos_str}) VALUES ({placeholders})"
-        cursor.execute(query, valores)
 
+        cursor.execute(query, valores)
         usuario_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
         logger.info(f"Usuário cadastrado: {email} (ID: {usuario_id}, Tipo: {tipo_usuario})")
 
-        # Tenta enviar email de confirmação (se módulo existir)
+        # Tenta enviar email de confirmação
         try:
             from auth.email_confirmation import gerar_token_confirmacao
             from utils.email_sender import enviar_email_confirmacao
 
             sucesso_token, token = gerar_token_confirmacao(usuario_id, email)
             if sucesso_token:
-                enviar_email_confirmacao(email, nome, token)
-                return True, f"Conta criada! Verifique seu email ({email}) para confirmar o cadastro."
-        except ImportError:
-            logger.warning("Módulo de confirmação de email não disponível")
+                sucesso_email, msg_email = enviar_email_confirmacao(email, nome, token)
+                if sucesso_email:
+                    return True, f"Conta criada! Verifique seu email ({email}) para confirmar o cadastro."
+                else:
+                    logger.warning(f"Email não enviado: {msg_email}")
+        except ImportError as e:
+            logger.warning(f"Módulo de confirmação não disponível: {e}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar email: {e}")
 
         return True, f"Conta criada com sucesso como {tipo_usuario.title()}!"
 
     except Exception as e:
         logger.error(f"Erro no cadastro: {e}")
-        return False, f"Erro ao criar conta: {e}"
+        return False, f"Erro ao criar conta: {str(e)}"
 
 
 def autenticar_usuario(email, senha):
@@ -205,20 +215,18 @@ def buscar_usuario_por_id(usuario_id):
         cursor.execute("PRAGMA table_info(usuarios)")
         colunas_existentes = [col[1] for col in cursor.fetchall()]
 
-        # Monta query baseado nas colunas disponíveis
+        # Campos básicos sempre presentes
         campos = ['id', 'nome', 'email', 'data_criacao', 'ativo']
 
-        if 'is_admin' in colunas_existentes:
-            campos.append('is_admin')
-        if 'tipo_usuario' in colunas_existentes:
-            campos.append('tipo_usuario')
-        if 'data_desativacao' in colunas_existentes:
-            campos.append('data_desativacao')
-        if 'motivo_desativacao' in colunas_existentes:
-            campos.append('motivo_desativacao')
+        # Adiciona campos opcionais se existirem
+        campos_opcionais = ['is_admin', 'tipo_usuario', 'data_desativacao', 'motivo_desativacao', 
+                           'cnpj', 'endereco', 'crmv', 'especialidade', 'email_confirmado']
+
+        for campo in campos_opcionais:
+            if campo in colunas_existentes:
+                campos.append(campo)
 
         campos_str = ', '.join(campos)
-
         cursor.execute(f"SELECT {campos_str} FROM usuarios WHERE id = ?", (usuario_id,))
 
         row = cursor.fetchone()
@@ -233,6 +241,8 @@ def buscar_usuario_por_id(usuario_id):
                 usuario['is_admin'] = False
             if 'tipo_usuario' not in usuario:
                 usuario['tipo_usuario'] = 'tutor'
+            if 'email_confirmado' not in usuario:
+                usuario['email_confirmado'] = True
 
             conn.close()
             return usuario
@@ -305,144 +315,4 @@ def atualizar_usuario(usuario_id, nome=None, email=None):
         cursor.execute("SELECT id FROM usuarios WHERE id = ?", (usuario_id,))
         if not cursor.fetchone():
             conn.close()
-            return False, "Usuário não encontrado"
-
-        # Atualiza campos
-        campos = []
-        valores = []
-
-        if nome:
-            campos.append("nome = ?")
-            valores.append(nome.strip().title())
-
-        if email:
-            campos.append("email = ?")
-            valores.append(email.strip().lower())
-
-        if campos:
-            valores.append(usuario_id)
-            query = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = ?"
-            cursor.execute(query, valores)
-            conn.commit()
-
-            logger.info(f"Usuário atualizado: ID {usuario_id}")
-            conn.close()
-            return True, "Dados atualizados com sucesso!"
-        else:
-            conn.close()
-            return True, "Nenhuma alteração realizada"
-
-    except Exception as e:
-        logger.error(f"Erro ao atualizar usuário: {e}")
-        return False, f"Erro ao atualizar dados: {e}"
-
-
-def alterar_senha(usuario_id, senha_atual, nova_senha, confirmar_nova):
-    """
-    Altera a senha do usuário
-
-    Args:
-        usuario_id: ID do usuário
-        senha_atual: Senha atual
-        nova_senha: Nova senha
-        confirmar_nova: Confirmação da nova senha
-
-    Returns:
-        Tupla (sucesso, mensagem)
-    """
-    try:
-        # Validações
-        if nova_senha != confirmar_nova:
-            return False, "As novas senhas não conferem"
-
-        if len(nova_senha) < 6:
-            return False, "A nova senha deve ter pelo menos 6 caracteres"
-
-        # Verifica senha atual
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT senha_hash FROM usuarios WHERE id = ?", (usuario_id,))
-        row = cursor.fetchone()
-
-        if not row:
-            conn.close()
-            return False, "Usuário não encontrado"
-
-        senha_hash = row[0]
-
-        if not bcrypt.checkpw(senha_atual.encode('utf-8'), senha_hash):
-            conn.close()
-            return False, "Senha atual incorreta"
-
-        # Hash da nova senha
-        nova_senha_hash = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt())
-
-        # Atualiza senha
-        cursor.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", 
-                      (nova_senha_hash, usuario_id))
-        conn.commit()
-        conn.close()
-
-        logger.info(f"Senha alterada para usuário: {usuario_id}")
-        return True, "Senha alterada com sucesso!"
-
-    except Exception as e:
-        logger.error(f"Erro ao alterar senha: {e}")
-        return False, f"Erro ao alterar senha: {e}"
-
-
-def deletar_usuario(usuario_id, senha_confirmacao):
-    """
-    Desativa (soft delete) um usuário
-
-    Args:
-        usuario_id: ID do usuário
-        senha_confirmacao: Senha para confirmação
-
-    Returns:
-        Tupla (sucesso, mensagem)
-    """
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        # Verifica senha
-        cursor.execute("SELECT senha_hash FROM usuarios WHERE id = ?", (usuario_id,))
-        row = cursor.fetchone()
-
-        if not row:
-            conn.close()
-            return False, "Usuário não encontrado"
-
-        senha_hash = row[0]
-
-        if not bcrypt.checkpw(senha_confirmacao.encode('utf-8'), senha_hash):
-            conn.close()
-            return False, "Senha de confirmação incorreta"
-
-        # Verifica se colunas de desativação existem
-        cursor.execute("PRAGMA table_info(usuarios)")
-        colunas_existentes = [col[1] for col in cursor.fetchall()]
-
-        if 'data_desativacao' in colunas_existentes:
-            # Desativa usuário (soft delete)
-            data_desativacao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            cursor.execute("""
-                UPDATE usuarios 
-                SET ativo = 0, data_desativacao = ?, motivo_desativacao = ?
-                WHERE id = ?
-            """, (data_desativacao, "Solicitação do usuário", usuario_id))
-        else:
-            # Apenas desativa
-            cursor.execute("UPDATE usuarios SET ativo = 0 WHERE id = ?", (usuario_id,))
-
-        conn.commit()
-        conn.close()
-
-        logger.info(f"Usuário desativado: {usuario_id}")
-        return True, "Conta desativada com sucesso!"
-
-    except Exception as e:
-        logger.error(f"Erro ao desativar usuário: {e}")
-        return False, f"Erro ao desativar conta: {e}"
+            return False
