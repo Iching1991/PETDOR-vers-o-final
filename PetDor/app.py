@@ -50,7 +50,7 @@ def main():
         else:
             st.sidebar.success(f"👋 Usuário")
 
-        # Links do menu lateral
+        # Links do menu lateral - ROTAS CORRETAS
         st.sidebar.markdown("""
         <a href="/avaliacao" target="_self">
             <button style="background: #4CAF50; color: white; padding: 10px; 
@@ -269,31 +269,33 @@ def main():
         # Estatísticas rápidas
         st.markdown("<br><br>", unsafe_allow_html=True)
 
-        from database.models import get_estatisticas_usuario
+        try:
+            from database.models import get_estatisticas_usuario
+            stats = get_estatisticas_usuario(st.session_state['usuario_id'])
 
-        stats = get_estatisticas_usuario(st.session_state['usuario_id'])
+            if stats and stats.get('total_avaliacoes', 0) > 0:
+                st.markdown("""
+                <div style="background: white; padding: 1.5rem; border-radius: 10px; 
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color: #2d3748; text-align: center; margin-bottom: 1rem;">
+                        📈 Suas Estatísticas
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
 
-        if stats and stats.get('total_avaliacoes', 0) > 0:
-            st.markdown("""
-            <div style="background: white; padding: 1.5rem; border-radius: 10px; 
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h3 style="color: #2d3748; text-align: center; margin-bottom: 1rem;">
-                    📈 Suas Estatísticas
-                </h3>
-            </div>
-            """, unsafe_allow_html=True)
+                col1, col2, col3 = st.columns(3)
 
-            col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Avaliações Realizadas", stats.get('total_avaliacoes', 0))
 
-            with col1:
-                st.metric("Avaliações Realizadas", stats.get('total_avaliacoes', 0))
+                with col2:
+                    st.metric("Pacientes Únicos", stats.get('total_pets', 0))
 
-            with col2:
-                st.metric("Pacientes Únicos", stats.get('total_pets', 0))
-
-            with col3:
-                media = stats.get('media_percentual', 0)
-                st.metric("Média de Dor", f"{media:.1f}%")
+                with col3:
+                    media = stats.get('media_percentual', 0)
+                    st.metric("Média de Dor", f"{media:.1f}%")
+        except ImportError:
+            st.info("📊 Estatísticas disponíveis após sua primeira avaliação!")
 
     # Footer
     st.markdown("---")
@@ -311,3 +313,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+if __name__ == "__main__":
+    main()
+
