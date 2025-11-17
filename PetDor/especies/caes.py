@@ -6,10 +6,11 @@ from especies.base import EspecieConfig, Pergunta
 
 CONFIG_CAES = EspecieConfig(
     nome="Cachorro",
-    escala_min=0,
-    escala_max=7,
     descricao="Avaliação de dor em cães - Escala de 0 (nunca) a 7 (sempre)",
-    opcoes_escala=["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre", "Quase Sempre", "Sempre"], # Ajustado para 0-7
+    opcoes_escala=[
+        "0 - Nunca", "1 - Raramente", "2 - Às vezes", "3 - Frequentemente",
+        "4 - Quase Sempre", "5 - Sempre", "6 - Muito Frequente", "7 - Constante"
+    ],
     perguntas=[
         # Energia e Atividade
         Pergunta(texto="Meu cão pouca energia", invertida=True, peso=1.0),
