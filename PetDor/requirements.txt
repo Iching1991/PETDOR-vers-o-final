@@ -1,8 +1,8 @@
 # Framework principal
-streamlit>=1.28.0
+streamlit==1.28.1
 
 # Segurança e criptografia
-bcrypt>=4.0.0
+bcrypt==4.0.1
 
 # Geração de PDFs
 fpdf2>=2.7.0
@@ -21,3 +21,6 @@ requests>=2.31.0
 
 # Variáveis de ambiente
 python-dotenv>=1.0.0
+
+# Gráficos (usado em avaliacao.py, se quiser)
+matplotlib>=3.7.0
