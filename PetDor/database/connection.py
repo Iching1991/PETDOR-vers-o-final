@@ -1,36 +1,38 @@
 """
-Gerenciamento de conexão com banco de dados SQLite do PETDor
+Gerenciamento de conexão com banco de dados SQLite do PETDOR
 """
+
+import os
 import sys
 from pathlib import Path
-
-# Adiciona a raiz do projeto ao path
-root_path = Path(__file__).parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
-
 import sqlite3
 import logging
 from config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
+# Adiciona a raiz do projeto ao path (para garantir importação de config.py)
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
 
 def conectar_db():
     """
     Conecta ao banco de dados SQLite e retorna a conexão.
-
     Returns:
         sqlite3.Connection: Conexão com o banco de dados
     """
     try:
+        # Garante que o diretório existe antes de tentar criar o arquivo do banco
+        db_dir = os.path.dirname(DATABASE_PATH)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         return conn
     except Exception as e:
         logger.error(f"Erro ao conectar ao banco: {e}")
         raise
-
 
 def init_database():
     """
@@ -103,5 +105,14 @@ def init_database():
     except Exception as e:
         logger.error(f"Erro ao inicializar banco: {e}")
         return False
+
+if __name__ == "__main__":
+    # Inicialização manual para rodar por terminal
+    if init_database():
+        print("Banco de dados PETDOR inicializado com sucesso!")
+    else:
+        print("Erro ao inicializar o banco de dados.")
+
+
 
 
