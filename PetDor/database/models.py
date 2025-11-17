@@ -1,381 +1,165 @@
 """
-Módulo de modelos e funções de acesso a dados do PETDOR.
-Contém funções para interagir com as tabelas do banco de dados.
+Migrações do banco de dados PETDOR
 """
 
+import sys
 import sqlite3
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from database.connection import conectar_db
+import logging
+from pathlib import Path
+from config import DATABASE_PATH
 
-# --- Funções para Usuários ---
+# Ajusta o path do projeto
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
 
-def buscar_usuario_por_email(email: str) -> Optional[Dict[str, Any]]:
-    """Busca um usuário pelo email."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
-    usuario = cursor.fetchone()
-    conn.close()
-    return dict(usuario) if usuario else None
+# ✔ Import correto
+from .connection import conectar_db
 
-def buscar_usuario_por_id(usuario_id: int) -> Optional[Dict[str, Any]]:
-    """Busca um usuário pelo ID."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE id = ?", (usuario_id,))
-    usuario = cursor.fetchone()
-    conn.close()
-    return dict(usuario) if usuario else None
+logger = logging.getLogger(__name__)
 
-def criar_usuario(nome: str, email: str, senha_hash: str, tipo_usuario: str = 'tutor', token_confirmacao: str = None) -> Optional[int]:
-    """Cria um novo usuário no banco de dados."""
-    conn = conectar_db()
-    cursor = conn.cursor()
+# ----------------------------------
+# Funções auxiliares
+# ----------------------------------
+def coluna_existe(cursor, tabela, coluna):
+    cursor.execute(f"PRAGMA table_info({tabela})")
+    colunas = [info[1] for info in cursor.fetchall()]
+    return coluna in colunas
+
+
+def adicionar_coluna(cursor, tabela, coluna, tipo):
+    if not coluna_existe(cursor, tabela, coluna):
+        cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+        print(f"✔ Coluna adicionada à tabela {tabela}: {coluna}")
+    else:
+        print(f"ℹ Coluna já existe na tabela {tabela}: {coluna}")
+
+
+# ----------------------------------
+# Migrações das tabelas
+# ----------------------------------
+def criar_tabela_usuarios():
     try:
-        data_registro = datetime.now().isoformat()
+        conn = conectar_db()
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO usuarios (nome, email, senha, data_registro, tipo_usuario, token_confirmacao)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (nome, email, senha_hash, data_registro, tipo_usuario, token_confirmacao))
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL,
+                data_registro TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                tipo_usuario TEXT DEFAULT 'tutor',
+                cnpj TEXT,
+                endereco TEXT,
+                crmv TEXT,
+                especialidade TEXT,
+                data_desativacao TEXT,
+                motivo_desativacao TEXT,
+                email_confirmado INTEGER DEFAULT 0,
+                token_confirmacao TEXT
+            )
+        """)
         conn.commit()
-        return cursor.lastrowid
-    except sqlite3.IntegrityError:
-        return None
-    finally:
         conn.close()
-
-def atualizar_usuario(usuario_id: int, **kwargs) -> bool:
-    """Atualiza campos de um usuário."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    set_clauses = []
-    values = []
-    for key, value in kwargs.items():
-        set_clauses.append(f"{key} = ?")
-        values.append(value)
-
-    if not set_clauses:
-        conn.close()
+        print("✅ Tabela 'usuarios' OK")
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao criar tabela usuarios: {e}")
         return False
 
-    values.append(usuario_id)
-    query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = ?"
 
+def criar_tabela_pets():
     try:
-        cursor.execute(query, tuple(values))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-def desativar_usuario(usuario_id: int, motivo: str) -> bool:
-    """Desativa um usuário (soft delete)."""
-    data_desativacao = datetime.now().isoformat()
-    return atualizar_usuario(usuario_id, data_desativacao=data_desativacao, motivo_desativacao=motivo)
-
-def ativar_usuario(usuario_id: int) -> bool:
-    """Ativa um usuário desativado."""
-    return atualizar_usuario(usuario_id, data_desativacao=None, motivo_desativacao=None)
-
-def confirmar_email_usuario(token_confirmacao: str) -> bool:
-    """Confirma o email de um usuário usando o token."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("UPDATE usuarios SET email_confirmado = 1, token_confirmacao = NULL WHERE token_confirmacao = ?", (token_confirmacao,))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-# --- Funções para Pets ---
-
-def criar_pet(tutor_id: int, nome: str, especie: str, raca: str = None, data_nascimento: str = None, sexo: str = None, peso: float = None, observacoes: str = None) -> Optional[int]:
-    """Cria um novo pet para um tutor."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
+        conn = conectar_db()
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO pets (tutor_id, nome, especie, raca, data_nascimento, sexo, peso, observacoes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (tutor_id, nome, especie, raca, data_nascimento, sexo, peso, observacoes))
+            CREATE TABLE IF NOT EXISTS pets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tutor_id INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                especie TEXT NOT NULL,
+                raca TEXT,
+                data_nascimento TEXT,
+                sexo TEXT,
+                peso REAL,
+                observacoes TEXT,
+                FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )
+        """)
         conn.commit()
-        return cursor.lastrowid
-    except Exception:
-        return None
-    finally:
         conn.close()
-
-def buscar_pets_por_tutor(tutor_id: int) -> List[Dict[str, Any]]:
-    """Busca todos os pets de um tutor."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM pets WHERE tutor_id = ?", (tutor_id,))
-    pets = cursor.fetchall()
-    conn.close()
-    return [dict(pet) for pet in pets]
-
-def buscar_pet_por_id(pet_id: int) -> Optional[Dict[str, Any]]:
-    """Busca um pet pelo ID."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM pets WHERE id = ?", (pet_id,))
-    pet = cursor.fetchone()
-    conn.close()
-    return dict(pet) if pet else None
-
-def atualizar_pet(pet_id: int, **kwargs) -> bool:
-    """Atualiza campos de um pet."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    set_clauses = []
-    values = []
-    for key, value in kwargs.items():
-        set_clauses.append(f"{key} = ?")
-        values.append(value)
-
-    if not set_clauses:
-        conn.close()
+        print("✅ Tabela 'pets' OK")
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao criar tabela pets: {e}")
         return False
 
-    values.append(pet_id)
-    query = f"UPDATE pets SET {', '.join(set_clauses)} WHERE id = ?"
 
+def criar_tabela_avaliacoes():
     try:
-        cursor.execute(query, tuple(values))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-def deletar_pet(pet_id: int) -> bool:
-    """Deleta um pet pelo ID."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM pets WHERE id = ?", (pet_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-# --- Funções para Avaliações de Dor ---
-
-def buscar_avaliacoes_usuario(usuario_id: int) -> List[Dict[str, Any]]:
-    """Busca todas as avaliações de dor de um usuário, incluindo dados do pet."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            a.id AS avaliacao_id,
-            a.data_avaliacao,
-            a.percentual_dor,
-            a.observacoes,
-            p.nome AS pet_nome,
-            p.especie AS pet_especie
-        FROM avaliacoes a
-        JOIN pets p ON a.pet_id = p.id
-        WHERE a.usuario_id = ?
-        ORDER BY a.data_avaliacao DESC
-    """, (usuario_id,))
-    avaliacoes = cursor.fetchall()
-    conn.close()
-    return [dict(av) for av in avaliacoes]
-
-def buscar_avaliacao_por_id(avaliacao_id: int) -> Optional[Dict[str, Any]]:
-    """Busca uma avaliação de dor pelo ID, incluindo dados do pet."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            a.id AS avaliacao_id,
-            a.data_avaliacao,
-            a.percentual_dor,
-            a.observacoes,
-            p.nome AS pet_nome,
-            p.especie AS pet_especie,
-            p.raca AS pet_raca,
-            p.data_nascimento AS pet_data_nascimento,
-            p.sexo AS pet_sexo,
-            p.peso AS pet_peso
-        FROM avaliacoes a
-        JOIN pets p ON a.pet_id = p.id
-        WHERE a.id = ?
-    """, (avaliacao_id,))
-    avaliacao = cursor.fetchone()
-    conn.close()
-    return dict(avaliacao) if avaliacao else None
-
-def deletar_avaliacao(avaliacao_id: int) -> bool:
-    """Deleta uma avaliação de dor pelo ID."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM avaliacoes WHERE id = ?", (avaliacao_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-def buscar_respostas_avaliacao(avaliacao_id: int) -> List[Dict[str, Any]]:
-    """Busca as respostas detalhadas de uma avaliação."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT pergunta_id, resposta
-        FROM avaliacao_respostas
-        WHERE avaliacao_id = ?
-        ORDER BY id
-    """, (avaliacao_id,))
-    respostas = cursor.fetchall()
-    conn.close()
-    return [dict(r) for r in respostas]
-
-# --- Funções para Compartilhamentos ---
-
-def criar_compartilhamento(pet_id: int, tutor_id: int, profissional_id: int, token_acesso: str, data_expiracao: str) -> Optional[int]:
-    """Cria um novo registro de compartilhamento de pet."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        data_compartilhamento = datetime.now().isoformat()
+        conn = conectar_db()
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO compartilhamentos_pet (pet_id, tutor_id, profissional_id, data_compartilhamento, ativo, token_acesso, data_expiracao)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (pet_id, tutor_id, profissional_id, data_compartilhamento, 1, token_acesso, data_expiracao))
+            CREATE TABLE IF NOT EXISTS avaliacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pet_id INTEGER NOT NULL,
+                usuario_id INTEGER NOT NULL,
+                data_avaliacao TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                percentual_dor INTEGER NOT NULL,
+                observacoes TEXT,
+                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )
+        """)
         conn.commit()
-        return cursor.lastrowid
-    except sqlite3.IntegrityError:
-        return None
-    finally:
         conn.close()
-
-def buscar_compartilhamento_por_token(token_acesso: str) -> Optional[Dict[str, Any]]:
-    """Busca um compartilhamento pelo token de acesso."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM compartilhamentos_pet WHERE token_acesso = ? AND ativo = 1", (token_acesso,))
-    compartilhamento = cursor.fetchone()
-    conn.close()
-    return dict(compartilhamento) if compartilhamento else None
-
-def desativar_compartilhamento(compartilhamento_id: int) -> bool:
-    """Desativa um compartilhamento de pet."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("UPDATE compartilhamentos_pet SET ativo = 0 WHERE id = ?", (compartilhamento_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
+        print("✅ Tabela 'avaliacoes' OK")
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao criar tabela avaliacoes: {e}")
         return False
-    finally:
-        conn.close()
 
-# --- Funções para Notificações ---
 
-def criar_notificacao(usuario_id: int, pet_id: int, tipo: str, mensagem: str, nivel_prioridade: int = 2, avaliacao_id: int = None) -> Optional[int]:
-    """Cria uma nova notificação."""
-    conn = conectar_db()
-    cursor = conn.cursor()
+def criar_tabela_avaliacao_respostas():
     try:
-        data_criacao = datetime.now().isoformat()
+        conn = conectar_db()
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO notificacoes (usuario_id, pet_id, avaliacao_id, tipo, mensagem, nivel_prioridade, data_criacao)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (usuario_id, pet_id, avaliacao_id, tipo, mensagem, nivel_prioridade, data_criacao))
+            CREATE TABLE IF NOT EXISTS avaliacao_respostas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                avaliacao_id INTEGER NOT NULL,
+                pergunta_id TEXT NOT NULL,
+                resposta TEXT NOT NULL,
+                FOREIGN KEY (avaliacao_id) REFERENCES avaliacoes(id) ON DELETE CASCADE
+            )
+        """)
         conn.commit()
-        return cursor.lastrowid
-    except Exception:
-        return None
-    finally:
         conn.close()
-
-def buscar_notificacoes_usuario(usuario_id: int, lidas: bool = False) -> List[Dict[str, Any]]:
-    """Busca notificações para um usuário, filtrando por lidas/não lidas."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    query = """
-        SELECT n.*, p.nome AS pet_nome, p.especie AS pet_especie
-        FROM notificacoes n
-        JOIN pets p ON n.pet_id = p.id
-        WHERE n.usuario_id = ?
-    """
-    params = [usuario_id]
-    if not lidas:
-        query += " AND n.lida = 0"
-    query += " ORDER BY n.data_criacao DESC"
-
-    cursor.execute(query, tuple(params))
-    notificacoes = cursor.fetchall()
-    conn.close()
-    return [dict(n) for n in notificacoes]
-
-def marcar_notificacao_como_lida(notificacao_id: int) -> bool:
-    """Marca uma notificação específica como lida."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    try:
-        data_leitura = datetime.now().isoformat()
-        cursor.execute("UPDATE notificacoes SET lida = 1, data_leitura = ? WHERE id = ?", (data_leitura, notificacao_id))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
+        print("✅ Tabela 'avaliacao_respostas' OK")
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao criar tabela avaliacao_respostas: {e}")
         return False
-    finally:
-        conn.close()
 
-def contar_notificacoes_nao_lidas(usuario_id: int) -> int:
-    """Conta o número de notificações não lidas para um usuário."""
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM notificacoes WHERE usuario_id = ? AND lida = 0", (usuario_id,))
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
 
-def get_estatisticas_usuario(usuario_id: int) -> Dict[str, Any]:
-    """Retorna estatísticas básicas das avaliações e pets do usuário."""
-    conn = conectar_db()
-    cursor = conn.cursor()
+def migrar_banco_completo():
+    print("\n🔄 Executando migrações completas do PETDOR...\n")
 
-    # Total de pets
-    cursor.execute("SELECT COUNT(*) FROM pets WHERE tutor_id = ?", (usuario_id,))
-    total_pets = cursor.fetchone()[0]
+    migracoes = [
+        ("Tabela de usuários", criar_tabela_usuarios),
+        ("Tabela de pets", criar_tabela_pets),
+        ("Tabela de avaliações", criar_tabela_avaliacoes),
+        ("Tabela de respostas", criar_tabela_avaliacao_respostas),
+    ]
 
-    # Total de avaliações
-    cursor.execute("SELECT COUNT(*) FROM avaliacoes WHERE usuario_id = ?", (usuario_id,))
-    total_avaliacoes = cursor.fetchone()[0]
+    for nome, func in migracoes:
+        print(f"\n📢 Migrando: {nome}")
+        func()
 
-    # Estatísticas de percentual de dor
-    cursor.execute("""
-        SELECT 
-            MAX(percentual_dor), 
-            MIN(percentual_dor), 
-            AVG(percentual_dor)
-        FROM avaliacoes 
-        WHERE usuario_id = ?
-    """, (usuario_id,))
-    maior_percentual, menor_percentual, media_percentual = cursor.fetchone()
+    print("\n🎉 Migrações concluídas!\n")
 
-    conn.close()
 
-    return {
-        "total_pets": total_pets,
-        "total_avaliacoes": total_avaliacoes,
-        "maior_percentual": maior_percentual,
-        "menor_percentual": menor_percentual,
-        "media_percentual": media_percentual
-    }
-
+if __name__ == "__main__":
+    migrar_banco_completo()
