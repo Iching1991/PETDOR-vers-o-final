@@ -1,85 +1,79 @@
 """
-Página de Reset de Senha (via token da URL)
+🔄 Página de Redefinição de Senha
 """
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
 import streamlit as st
-from auth.password_reset import validar_token, resetar_senha
+from auth.password_reset import validar_token_reset, redefinir_senha, marcar_token_usado
 from utils.validators import validar_senha, senhas_conferem
 
-def render_reset_senha_page(token):
-    """Renderiza página de reset de senha"""
+# Configuração da página
+st.set_page_config(
+    page_title="Redefinir Senha - PETDor",
+    page_icon="🔄",
+    layout="centered"
+)
 
+
+def main():
+    """Renderiza a página de redefinição de senha"""
+
+    # Header
     st.markdown("""
-    <div class="wellness-card" style="max-width: 500px; margin: 2rem auto;">
-        <h2 style="color: #2d3748; text-align: center; margin-bottom: 1rem;">
-            🔐 Redefinir Senha
-        </h2>
-        <p style="color: #718096; text-align: center; margin-bottom: 2rem;">
-            Escolha uma nova senha segura
+    <div style="text-align: center; padding: 2rem 1rem;">
+        <h1 style="color: #2d3748; margin-bottom: 0.5rem;">🔄 Redefinir Senha</h1>
+        <p style="color: #718096; font-size: 1.1rem;">
+            Crie uma nova senha para sua conta
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Valida token primeiro
-    usuario_id, erro = validar_token(token)
+    # Pega token da URL
+    query_params = st.query_params
+    token = query_params.get("token", None)
 
-    if erro:
-        st.error(f"❌ {erro}")
-        st.info("Solicite um novo link de recuperação na opção **🔓 Recuperar Senha**")
+    if not token:
+        st.error("""
+        ❌ **Token não encontrado**
 
-        if st.button("← Voltar para Login"):
-            st.query_params.clear()
-            st.rerun()
+        Este link não é válido. Por favor, solicite um novo link de recuperação de senha.
+        """)
+
+        if st.button("🔑 Solicitar novo link", use_container_width=True, type="primary"):
+            st.switch_page("pages/recuperar_senha.py")
+
+        if st.button("🏠 Voltar para Home", use_container_width=True):
+            st.switch_page("app.py")
 
         return
 
-    # Formulário de nova senha
-    with st.form("form_reset_senha"):
-        nova_senha = st.text_input(
-            "🔒 Nova Senha",
-            type="password",
-            placeholder="Mínimo 6 caracteres",
-            help="Escolha uma senha segura"
-        )
+    # Valida token
+    valido, usuario_id, mensagem = validar_token_reset(token)
 
-        confirma_senha = st.text_input(
-            "🔒 Confirmar Nova Senha",
-            type="password",
-            placeholder="Digite novamente",
-            help="Repita a nova senha"
-        )
+    if not valido:
+        st.error(f"""
+        ❌ **{mensagem}**
 
-        submitted = st.form_submit_button(
-            "Redefinir Senha",
-            type="primary",
-            use_container_width=True
-        )
+        Este link pode estar expirado ou já ter sido utilizado.
+        Solicite um novo link de recuperação.
+        """)
 
-    if submitted:
-        # Validações
-        valid, msg = validar_senha(nova_senha)
-        if not valid:
-            st.error(f"❌ {msg}")
-            return
+        if st.button("🔑 Solicitar novo link", use_container_width=True, type="primary"):
+            st.switch_page("pages/recuperar_senha.py")
 
-        valid, msg = senhas_conferem(nova_senha, confirma_senha)
-        if not valid:
-            st.error(f"❌ {msg}")
-            return
+        if st.button("🏠 Voltar para Home", use_container_width=True):
+            st.switch_page("app.py")
 
-        # Reseta senha
-        with st.spinner("Redefinindo senha..."):
-            sucesso, mensagem = resetar_senha(token, nova_senha)
+        return
 
-        if sucesso:
-            st.success(f"✅ {mensagem}")
-            st.balloons()
+    # Token válido - exibe formulário
+    st.success("✅ Token válido! Defina sua nova senha abaixo.")
 
-            # Limpa token da URL
-            st.query_params.clear()
-
-            st.info("Você pode fazer login agora com sua nova senha")
-
-            if st.button("Ir para Login", type="primary"):
-                st.rerun()
-        else:
-            st.error(f"❌ {mensagem}")
+    # Formulário de redefinição
+    with st.form("reset_senha
