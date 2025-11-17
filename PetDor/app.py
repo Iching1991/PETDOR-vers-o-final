@@ -11,7 +11,7 @@ if str(root_path) not in sys.path:
 
 import streamlit as st
 from database.connection import init_database
-from database.migration import adicionar_colunas_desativacao
+from database.migration import adicionar_colunas_desativacao, adicionar_campo_admin
 from auth.user import buscar_usuario_por_id
 from config import APP_CONFIG
 
@@ -29,7 +29,8 @@ def main():
     # Inicializa banco de dados e migrações
     if 'db_initialized' not in st.session_state:
         init_database()
-        adicionar_colunas_desativacao()  # Migração para colunas de desativação
+        adicionar_colunas_desativacao()
+        adicionar_campo_admin()
         st.session_state['db_initialized'] = True
         st.session_state['migracoes_executadas'] = True
 
@@ -49,37 +50,84 @@ def main():
         else:
             st.sidebar.success(f"👋 Usuário")
 
-        pages = {
-            "📋 Avaliar Pet": "pages/avaliacao.py",
-            "📊 Histórico": "pages/historico.py",
-            "👤 Minha Conta": "pages/conta.py",
-        }
+        # Links do menu lateral
+        st.sidebar.markdown("""
+        <a href="/avaliacao" target="_self">
+            <button style="background: #4CAF50; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                📋 Avaliar Pet
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+
+        st.sidebar.markdown("""
+        <a href="/historico" target="_self">
+            <button style="background: #2196F3; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                📊 Histórico
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+
+        st.sidebar.markdown("""
+        <a href="/conta" target="_self">
+            <button style="background: #FF9800; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                👤 Minha Conta
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
         # Adiciona Admin se for admin
         if usuario_data and usuario_data.get('is_admin', False):
-            pages["🔐 Admin"] = "pages/admin.py"
+            st.sidebar.markdown("""
+            <a href="/admin" target="_self">
+                <button style="background: #9C27B0; color: white; padding: 10px; 
+                               border: none; border-radius: 8px; cursor: pointer; 
+                               width: 100%; margin: 5px 0; text-align: left;">
+                    🔐 Admin
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
 
-        pages["🚪 Sair"] = None
-
-        for nome, pagina in pages.items():
-            if pagina:
-                if st.sidebar.button(nome, use_container_width=True):
-                    st.switch_page(pagina)
-            else:
-                if st.sidebar.button(nome, use_container_width=True):
-                    st.session_state.clear()
-                    st.rerun()
+        # Botão Sair
+        if st.sidebar.button("🚪 Sair", use_container_width=True):
+            st.session_state.clear()
+            st.experimental_rerun()
     else:
         # Usuário não logado
-        pages = {
-            "🔐 Login": "pages/login.py",
-            "📝 Cadastro": "pages/cadastro.py",
-            "🔑 Recuperar Senha": "pages/recuperar_senha.py"
-        }
+        st.sidebar.markdown("""
+        <a href="/login" target="_self">
+            <button style="background: #4CAF50; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                🔐 Login
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
-        for nome, pagina in pages.items():
-            if st.sidebar.button(nome, use_container_width=True):
-                st.switch_page(pagina)
+        st.sidebar.markdown("""
+        <a href="/cadastro" target="_self">
+            <button style="background: #2196F3; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                📝 Cadastro
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+
+        st.sidebar.markdown("""
+        <a href="/recuperar_senha" target="_self">
+            <button style="background: #FF9800; color: white; padding: 10px; 
+                           border: none; border-radius: 8px; cursor: pointer; 
+                           width: 100%; margin: 5px 0; text-align: left;">
+                🔑 Recuperar Senha
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     # Conteúdo principal (página inicial)
     if 'usuario_id' not in st.session_state:
@@ -120,12 +168,26 @@ def main():
             col_btn1, col_btn2 = st.columns(2)
 
             with col_btn1:
-                if st.button("🔐 Fazer Login", use_container_width=True, type="primary"):
-                    st.switch_page("pages/login.py")
+                st.markdown("""
+                <a href="/login" target="_self">
+                    <button style="background: #4CAF50; color: white; padding: 12px 24px; 
+                                   border: none; border-radius: 8px; font-size: 16px; 
+                                   cursor: pointer; width: 100%;">
+                        🔐 Fazer Login
+                    </button>
+                </a>
+                """, unsafe_allow_html=True)
 
             with col_btn2:
-                if st.button("📝 Criar Conta", use_container_width=True):
-                    st.switch_page("pages/cadastro.py")
+                st.markdown("""
+                <a href="/cadastro" target="_self">
+                    <button style="background: #2196F3; color: white; padding: 12px 24px; 
+                                   border: none; border-radius: 8px; font-size: 16px; 
+                                   cursor: pointer; width: 100%;">
+                        📝 Criar Conta
+                    </button>
+                </a>
+                """, unsafe_allow_html=True)
     else:
         # Dashboard para usuários logados
         usuario_data = buscar_usuario_por_id(st.session_state['usuario_id'])
@@ -154,8 +216,15 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Avaliar Pet", use_container_width=True, type="primary"):
-                st.switch_page("pages/avaliacao.py")
+            st.markdown("""
+            <a href="/avaliacao" target="_self">
+                <button style="background: #4CAF50; color: white; padding: 10px 20px; 
+                               border: none; border-radius: 8px; cursor: pointer; 
+                               width: 100%; margin-top: 10px;">
+                    Avaliar Pet
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
 
         with col2:
             st.markdown("""
@@ -167,8 +236,15 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Ver Histórico", use_container_width=True):
-                st.switch_page("pages/historico.py")
+            st.markdown("""
+            <a href="/historico" target="_self">
+                <button style="background: #2196F3; color: white; padding: 10px 20px; 
+                               border: none; border-radius: 8px; cursor: pointer; 
+                               width: 100%; margin-top: 10px;">
+                    Ver Histórico
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
 
         with col3:
             st.markdown("""
@@ -180,8 +256,15 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Configurações", use_container_width=True):
-                st.switch_page("pages/conta.py")
+            st.markdown("""
+            <a href="/conta" target="_self">
+                <button style="background: #FF9800; color: white; padding: 10px 20px; 
+                               border: none; border-radius: 8px; cursor: pointer; 
+                               width: 100%; margin-top: 10px;">
+                    Configurações
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
 
         # Estatísticas rápidas
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -228,6 +311,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
