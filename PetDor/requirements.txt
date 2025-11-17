@@ -1,11 +1,23 @@
-bcrypt
-fpdf2
-pandas
-pillow
-python-dateutil
-streamlit
-requests
-streamlit==1.28.1
-sqlite3
-bcrypt==4.0.1
-python-dotenv
+# Framework principal
+streamlit>=1.28.0
+
+# Segurança e criptografia
+bcrypt>=4.0.0
+
+# Geração de PDFs
+fpdf2>=2.7.0
+
+# Manipulação de dados
+pandas>=2.0.0
+
+# Processamento de imagens
+pillow>=10.0.0
+
+# Utilitários de data
+python-dateutil>=2.8.0
+
+# Requisições HTTP
+requests>=2.31.0
+
+# Variáveis de ambiente
+python-dotenv>=1.0.0
