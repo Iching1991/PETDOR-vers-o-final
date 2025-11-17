@@ -4,6 +4,21 @@ Integra sistema modular de espécies (especies/)
 """
 import sys
 from pathlib import Path
+import streamlit as st
+
+st.set_page_config(page_title="Avaliar Pet - PETDor", page_icon="📋", layout="wide")
+
+st.title("📋 Avaliar Pet")
+st.info("🔄 Em desenvolvimento - página de avaliação de pet em construção")
+
+st.markdown("""
+<a href="/" target="_self">
+    <button style="background: #607D8B; color: white; padding: 10px 20px; 
+                   border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+        🏠 Voltar para Home
+    </button>
+</a>
+""", unsafe_allow_html=True)
 
 # Adiciona a raiz do projeto ao path
 root_path = Path(__file__).parent.parent
@@ -264,3 +279,4 @@ def render_avaliacao_page(usuario):
         if st.button("← Voltar ao Início", use_container_width=True):
             st.session_state["menu"] = "🏠 Início"
             st.rerun()
+
