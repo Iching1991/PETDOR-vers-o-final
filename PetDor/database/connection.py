@@ -1,4 +1,4 @@
-# PetDor/connection.py
+# PetDor/database/connection.py
 """
 Conexão central do banco SQLite do PETDOR
 """
