@@ -25,24 +25,23 @@ def main():
     """Renderiza a página de redefinição de senha"""
 
     # Header
-    st.markdown("""
-    <div style="text-align: center; padding: 2rem 1rem;">
-        <h1 style="color: #2d3748; margin-bottom: 0.5rem;">🔄 Redefinir Senha</h1>
-        <p style="color: #718096; font-size: 1.1rem;">
-            Crie uma nova senha para sua conta
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.title("🔄 Redefinir Senha")
+    st.markdown("Crie uma nova senha para sua conta")
+    st.markdown("---")
 
-    # Pega token da URL (compatível com diferentes versões do Streamlit)
+    # Pega token da URL
+    token = None
     try:
-        # Streamlit >= 1.30
-        query_params = st.query_params
-        token = query_params.get("token", [None])[0] if isinstance(query_params.get("token"), list) else query_params.get("token")
-    except AttributeError:
-        # Streamlit < 1.30
-        query_params = st.experimental_get_query_params()
-        token = query_params.get("token", [None])[0]
+        # Tenta pegar do query_params (Streamlit >= 1.30)
+        params = dict(st.query_params)
+        token = params.get("token")
+    except:
+        try:
+            # Fallback para versão antiga
+            params = st.experimental_get_query_params()
+            token = params.get("token", [None])[0]
+        except:
+            pass
 
     if not token:
         st.error("""
@@ -51,15 +50,23 @@ def main():
         Este link não é válido. Por favor, solicite um novo link de recuperação de senha.
         """)
 
+        st.markdown("---")
+
         col1, col2 = st.columns(2)
 
         with col1:
             if st.button("🔑 Solicitar novo link", use_container_width=True, type="primary"):
-                st.switch_page("pages/recuperar_senha.py")
+                st.markdown("""
+                <meta http-equiv="refresh" content="0; url=/recuperar_senha">
+                """, unsafe_allow_html=True)
+                st.info("Redirecionando...")
 
         with col2:
             if st.button("🏠 Voltar para Home", use_container_width=True):
-                st.switch_page("app.py")
+                st.markdown("""
+                <meta http-equiv="refresh" content="0; url=/">
+                """, unsafe_allow_html=True)
+                st.info("Redirecionando...")
 
         return
 
@@ -74,15 +81,23 @@ def main():
         Solicite um novo link de recuperação.
         """)
 
+        st.markdown("---")
+
         col1, col2 = st.columns(2)
 
         with col1:
             if st.button("🔑 Solicitar novo link", use_container_width=True, type="primary"):
-                st.switch_page("pages/recuperar_senha.py")
+                st.markdown("""
+                <meta http-equiv="refresh" content="0; url=/recuperar_senha">
+                """, unsafe_allow_html=True)
+                st.info("Redirecionando...")
 
         with col2:
             if st.button("🏠 Voltar para Home", use_container_width=True):
-                st.switch_page("app.py")
+                st.markdown("""
+                <meta http-equiv="refresh" content="0; url=/">
+                """, unsafe_allow_html=True)
+                st.info("Redirecionando...")
 
         return
 
@@ -158,13 +173,19 @@ def main():
 
                     st.balloons()
 
-                    # Aguarda um pouco antes de mostrar o botão
-                    import time
-                    time.sleep(1)
-
-                    # Botão para ir ao login
-                    if st.button("🔐 Fazer Login Agora", use_container_width=True, type="primary"):
-                        st.switch_page("pages/login.py")
+                    # Link para login
+                    st.markdown("---")
+                    st.markdown("""
+                    <div style="text-align: center; padding: 1rem;">
+                        <a href="/login" target="_self">
+                            <button style="background: #4CAF50; color: white; padding: 12px 24px; 
+                                           border: none; border-radius: 8px; font-size: 16px; 
+                                           cursor: pointer; width: 100%;">
+                                🔐 Fazer Login Agora
+                            </button>
+                        </a>
+                    </div>
+                    """, unsafe_allow_html=True)
                 else:
                     st.error(f"❌ {mensagem_reset}")
 
@@ -174,12 +195,24 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🔐 Fazer Login", use_container_width=True):
-            st.switch_page("pages/login.py")
+        st.markdown("""
+        <a href="/login" target="_self">
+            <button style="background: #2196F3; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                🔐 Fazer Login
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     with col2:
-        if st.button("🏠 Voltar para Home", use_container_width=True):
-            st.switch_page("app.py")
+        st.markdown("""
+        <a href="/" target="_self">
+            <button style="background: #607D8B; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                🏠 Voltar para Home
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
