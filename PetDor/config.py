@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).parent
 
 # Caminho do banco de dados
 # Usa variável de ambiente para permitir flexibilização
-DATABASE_PATH = os.getenv("DATABASE_PATH", "C:/Databases/petdor.db")
+DATABASE_PATH = "petdor.db"
 
 # Configurações do app
 APP_CONFIG = {
@@ -27,3 +27,4 @@ EMAIL_CONFIG = {
     'usuario': os.getenv('EMAIL_USER', 'contato@petdor.app'),
     'senha': os.getenv('EMAIL_PASSWORD', '')
 }
+
