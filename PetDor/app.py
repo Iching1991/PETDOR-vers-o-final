@@ -1,167 +1,253 @@
-"""
-Aplicativo principal PETDOR
-Versão com Dark Mode, Mobile-friendly e tema PETDor
-"""
-
-import sys
-from pathlib import Path
 import streamlit as st
+import sqlite3
+import bcrypt
+from datetime import datetime
+from fpdf import FPDF
+import time
+import urllib.parse
 
-# Ajusta path do projeto
-root_path = Path(__file__).parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+# ---------------------------------------------
+# 🔌 Conexão + Inicialização do Banco (unificado)
+# ---------------------------------------------
+from connection import conectar_db, init_database
+from database import migrar_banco_completo
 
-# UI styles and assets
-from styles import carregar_css
+# ---------------------------------------------
+# 🔰 Inicialização automática do banco
+# ---------------------------------------------
+init_database()
+migrar_banco_completo()
 
-# Import database functions (no execution on import)
-from database.connection import conectar_db, init_database
-from database.migration import criar_tabelas, migrar_banco_completo
-from auth.user import buscar_usuario_por_id
-from config import APP_CONFIG
+st.set_page_config(page_title="PETDOR – Avaliação de Dor", layout="centered")
 
-# Streamlit config (theme is also set via .streamlit/config.toml)
-st.set_page_config(
-    page_title=APP_CONFIG.get("titulo", "PETDor"),
-    page_icon="🐾",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# ---------------------------------------------
+# 📌 Funções auxiliares
+# ---------------------------------------------
+def criar_hash(senha):
+    return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
-# Load CSS
-carregar_css()
+def validar_senha(senha, senha_hash):
+    return bcrypt.checkpw(senha.encode(), senha_hash.encode())
 
-# Small helper to render the logo
-def render_logo(width=220):
-    try:
-        with open(Path(__file__).parent / "assets" / "logo.svg", "r", encoding="utf-8") as f:
-            svg = f.read()
-            st.markdown(f"<div style='display:flex; align-items:center; gap:12px'>{svg}</div>", unsafe_allow_html=True)
-    except Exception:
-        st.title("🐾 " + APP_CONFIG.get("titulo", "PETDor"))
+# ---------------------------------------------
+# 🔐 Autenticação
+# ---------------------------------------------
+def login(email, senha):
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
+    user = cur.fetchone()
+    conn.close()
 
-# Card component (mobile-friendly)
-def card(emoji, title, href):
-    st.markdown(f"""
-    <div class="petdor-card">
-        <div style="font-size:2.2rem;margin-bottom:8px;">{emoji}</div>
-        <h3 style="margin:0 0 8px 0;">{title}</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown(f"[Ir →]({href})", unsafe_allow_html=True)
+    if user and validar_senha(senha, user["senha"]):
+        return user
+    return None
 
-def exibir_home_publica():
-    st.markdown("<div style='display:flex;align-items:center;gap:16px'>", unsafe_allow_html=True)
-    render_logo()
-    st.markdown(f"<div style='margin-left:8px'><h2 style='margin:0;color:#E6EEF8'>{APP_CONFIG.get('titulo','PETDor')}</h2><div class='muted'>{APP_CONFIG.get('tagline','Avaliação profissional de dor em animais')}</div></div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.markdown("""
-    <div class="petdor-card">
-      <h3 style="margin-top:0">✨ Recursos Principais</h3>
-      <ul class="muted">
-        <li>📋 Avaliações baseadas em escalas científicas</li>
-        <li>🐕 Suporte para cães e gatos</li>
-        <li>📊 Histórico completo de avaliações</li>
-        <li>📄 Relatórios em PDF profissionais</li>
-        <li>🔒 Dados seguros e privados</li>
-      </ul>
-    </div>
-    """, unsafe_allow_html=True)
+def cadastrar_usuario(nome, email, senha):
+    conn = conectar_db()
+    cur = conn.cursor()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("<div class='petdor-cta'>", unsafe_allow_html=True)
-        if st.button("🔐 Fazer Login", key="login_cta"):
-            st.experimental_set_query_params(page="login")
-            st.experimental_rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown("<div class='petdor-cta'>", unsafe_allow_html=True)
-        if st.button("📝 Criar Conta", key="cadastro_cta"):
-            st.experimental_set_query_params(page="cadastro")
-            st.experimental_rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+    senha_hash = criar_hash(senha)
+    cur.execute("""
+        INSERT INTO usuarios (nome, email, senha_hash)
+        VALUES (?, ?, ?)
+    """, (nome, email, senha_hash))
 
-def exibir_dashboard(usuario):
-    render_logo(180)
-    st.markdown(f"### Olá, **{usuario.get('nome','Usuário')}** 👋")
-    st.markdown(f"<div class='muted'>Perfil: {usuario.get('tipo_usuario','tutor').title()}</div>", unsafe_allow_html=True)
-    st.markdown("---")
+    conn.commit()
+    conn.close()
+    return True
 
-    # Sidebar actions
-    st.sidebar.title("Navegação")
-    st.sidebar.markdown(f"👋 {usuario.get('nome','Usuário')}")
-    if st.sidebar.button("📋 Avaliar Pet", use_container_width=True):
-        st.experimental_set_query_params(page="avaliacao")
-        st.experimental_rerun()
-    if st.sidebar.button("📊 Histórico", use_container_width=True):
-        st.experimental_set_query_params(page="historico")
-        st.experimental_rerun()
-    if st.sidebar.button("👤 Minha Conta", use_container_width=True):
-        st.experimental_set_query_params(page="conta")
-        st.experimental_rerun()
-    if usuario.get("is_admin"):
-        if st.sidebar.button("🔐 Administração", use_container_width=True):
-            st.experimental_set_query_params(page="admin")
-            st.experimental_rerun()
-    if st.sidebar.button("🚪 Sair", use_container_width=True):
-        st.session_state.clear()
-        st.experimental_rerun()
 
-    # Main action cards (responsive)
-    cols = st.columns([1,1,1])
-    with cols[0]:
-        card("📋", "Nova Avaliação", "/avaliacao")
-    with cols[1]:
-        card("📊", "Histórico", "/historico")
-    with cols[2]:
-        card("👤", "Minha Conta", "/conta")
+def reset_password_request(email):
+    conn = conectar_db()
+    cur = conn.cursor()
 
-    # Stats
-    try:
-        from database.models import get_estatisticas_usuario
-        stats = get_estatisticas_usuario(usuario["id"])
-        if stats and stats.get("total_avaliacoes",0) > 0:
-            st.markdown("### 📈 Suas Estatísticas")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Avaliações", stats.get("total_avaliacoes",0))
-            c2.metric("Pacientes", stats.get("total_pets",0))
-            c3.metric("Média de Dor", f"{stats.get('media_percentual',0):.1f}%")
-    except Exception:
-        st.info("📊 Estatísticas aparecerão após sua primeira avaliação.")
+    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email,))
+    user = cur.fetchone()
 
-def main():
-    # Inicializa DB e migrações apenas 1x por sessão
-    if "db_initialized" not in st.session_state:
-        with st.spinner("Inicializando banco de dados..."):
-            conectar_db()
-            criar_tabelas()
-            migrar_banco_completo()
-            init_database()
-        st.session_state["db_initialized"] = True
+    if not user:
+        return None
 
-    # Optional: redirect flag
-    if st.session_state.get("redirect_to_avaliacao"):
-        st.session_state["redirect_to_avaliacao"] = False
-        st.experimental_set_query_params(page="avaliacao")
-        st.experimental_rerun()
+    token = bcrypt.gensalt().decode()
+    exp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    usuario_id = st.session_state.get("usuario_id")
-    if not usuario_id:
-        exibir_home_publica()
-        return
+    cur.execute("""
+        INSERT INTO password_resets (usuario_id, token, expires_at)
+        VALUES (?, ?, ?)
+    """, (user["id"], token, exp))
 
-    usuario = buscar_usuario_por_id(usuario_id)
-    if not usuario:
-        st.error("Erro ao carregar usuário. Faça login novamente.")
-        st.session_state.clear()
-        st.experimental_rerun()
-        return
+    conn.commit()
+    conn.close()
 
-    exibir_dashboard(usuario)
+    return token
 
-if __name__ == "__main__":
-    main()
+
+def reset_password(token, nova_senha):
+    conn = conectar_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0", (token,))
+    pr = cur.fetchone()
+
+    if not pr:
+        return False
+
+    senha_hash = criar_hash(nova_senha)
+
+    cur.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (senha_hash, pr["usuario_id"]))
+    cur.execute("UPDATE password_resets SET used = 1 WHERE token = ?", (token,))
+
+    conn.commit()
+    conn.close()
+    return True
+
+
+# ---------------------------------------------
+# 📋 Cadastro de PETS
+# ---------------------------------------------
+def cadastrar_pet(tutor_id, nome, especie, raca, peso):
+    conn = conectar_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO pets (tutor_id, nome, especie, raca, peso)
+        VALUES (?, ?, ?, ?, ?)
+    """, (tutor_id, nome, especie, raca, peso))
+
+    conn.commit()
+    conn.close()
+
+
+def listar_pets(tutor_id):
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM pets WHERE tutor_id = ?", (tutor_id,))
+    pets = cur.fetchall()
+    conn.close()
+    return pets
+
+
+# ---------------------------------------------
+# 📝 Avaliação
+# ---------------------------------------------
+def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
+    conn = conectar_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO avaliacoes (pet_id, usuario_id, percentual_dor, observacoes)
+        VALUES (?, ?, ?, ?)
+    """, (pet_id, usuario_id, percentual, observacoes))
+
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------
+# 📄 PDF
+# ---------------------------------------------
+def gerar_pdf(nome_pet, percentual, obs):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=14)
+
+    pdf.cell(0, 10, "Relatório PETDOR", ln=True)
+    pdf.cell(0, 10, f"Pet: {nome_pet}", ln=True)
+    pdf.cell(0, 10, f"Percentual de dor: {percentual}%", ln=True)
+    pdf.multi_cell(0, 10, f"Observações:\n{obs}")
+
+    filename = f"relatorio_{nome_pet}.pdf"
+    pdf.output(filename)
+
+    return filename
+
+
+# ---------------------------------------------
+# 🎨 Interface
+# ---------------------------------------------
+st.title("🐾 PETDOR – Sistema de Avaliação de Dor")
+
+menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta", "Redefinir Senha"])
+
+# ---------------------------------------------
+# LOGIN
+# ---------------------------------------------
+if menu == "Login":
+    email = st.text_input("E-mail")
+    senha = st.text_input("Senha", type="password")
+
+    if st.button("Entrar"):
+        user = login(email, senha)
+        if user:
+            st.success(f"Bem-vindo, {user['nome']}!")
+            st.session_state.user = user
+        else:
+            st.error("Credenciais inválidas.")
+
+    # Se logado — fluxo principal
+    if "user" in st.session_state:
+        user = st.session_state.user
+
+        st.subheader("Cadastrar novo Pet")
+        with st.form("pet_form"):
+            nome_pet = st.text_input("Nome")
+            especie = st.text_input("Espécie")
+            raca = st.text_input("Raça")
+            peso = st.number_input("Peso (kg)", step=0.1)
+            if st.form_submit_button("Salvar Pet"):
+                cadastrar_pet(user["id"], nome_pet, especie, raca, peso)
+                st.success("Pet cadastrado com sucesso!")
+
+        st.subheader("Suas avaliações")
+        pets = listar_pets(user["id"])
+        pet_selec = st.selectbox("Escolha o pet", [p["nome"] for p in pets] if pets else [])
+
+        if pet_selec:
+            pet = next(p for p in pets if p["nome"] == pet_selec)
+
+            percentual = st.slider("Percentual de Dor (%)", 0, 100, 50)
+            obs = st.text_area("Observações")
+
+            if st.button("Registrar Avaliação"):
+                registrar_avaliacao(pet["id"], user["id"], percentual, obs)
+                st.success("Avaliação salva!")
+
+            if st.button("Gerar PDF"):
+                filename = gerar_pdf(pet["nome"], percentual, obs)
+                with open(filename, "rb") as f:
+                    st.download_button("Baixar PDF", f, file_name=filename)
+
+# ---------------------------------------------
+# CRIAR CONTA
+# ---------------------------------------------
+elif menu == "Criar Conta":
+    nome = st.text_input("Nome")
+    email = st.text_input("E-mail")
+    senha = st.text_input("Senha", type="password")
+
+    if st.button("Criar"):
+        cadastrar_usuario(nome, email, senha)
+        st.success("Conta criada com sucesso. Faça login!")
+
+# ---------------------------------------------
+# RESET SENHA
+# ---------------------------------------------
+elif menu == "Redefinir Senha":
+    email = st.text_input("Seu e-mail")
+
+    if st.button("Enviar token"):
+        token = reset_password_request(email)
+        if token:
+            st.info(f"Token gerado: {token}\n\nCopie e cole abaixo.")
+        else:
+            st.error("E-mail não encontrado.")
+
+    token = st.text_input("Token")
+    nova = st.text_input("Nova senha", type="password")
+
+    if st.button("Alterar senha"):
+        if reset_password(token, nova):
+            st.success("Senha alterada com sucesso!")
+        else:
+            st.error("Token inválido ou expirado.")
