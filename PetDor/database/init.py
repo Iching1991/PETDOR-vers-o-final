@@ -1,6 +1,5 @@
 """
-Inicialização do pacote database do PETDOR.
-Expõe funções centrais de conexão e migração.
+Inicialização do pacote database
 """
 
 from .connection import conectar_db
