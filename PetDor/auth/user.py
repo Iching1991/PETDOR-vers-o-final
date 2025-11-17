@@ -51,7 +51,7 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha):
         return True, "Usuário cadastrado com sucesso!"
     except Exception as e:
         logger.error(f"Erro ao cadastrar usuário: {e}")
-        return False, f"Erro ao cadastrar usuário: {e}"  # ← CORRIGIDO AQUI
+        return False, f"Erro ao cadastrar usuário: {e}"
     finally:
         conn.close()
 
@@ -101,5 +101,162 @@ def buscar_usuario_por_id(usuario_id):
     except Exception as e:
         logger.error(f"Erro ao buscar usuário: {e}")
         return None
+    finally:
+        conn.close()
+
+def atualizar_usuario(usuario_id, nome=None, email=None):
+    """
+    Atualiza dados do usuário
+
+    Args:
+        usuario_id: ID do usuário
+        nome: Novo nome (opcional)
+        email: Novo email (opcional)
+
+    Returns:
+        Tupla (sucesso, mensagem)
+    """
+    try:
+        # Validações
+        if nome:
+            ok, msg = validar_nome(nome)
+            if not ok:
+                return False, msg
+
+        if email:
+            ok, msg = validar_email(email)
+            if not ok:
+                return False, msg
+
+        conn = conectar_db()
+        cursor = conn.cursor()
+
+        # Verifica se usuário existe
+        cursor.execute("SELECT id FROM usuarios WHERE id = ?", (usuario_id,))
+        if not cursor.fetchone():
+            return False, "Usuário não encontrado"
+
+        # Atualiza campos fornecidos
+        if nome and email:
+            cursor.execute(
+                "UPDATE usuarios SET nome = ?, email = ? WHERE id = ?",
+                (nome, email, usuario_id)
+            )
+        elif nome:
+            cursor.execute(
+                "UPDATE usuarios SET nome = ? WHERE id = ?",
+                (nome, usuario_id)
+            )
+        elif email:
+            cursor.execute(
+                "UPDATE usuarios SET email = ? WHERE id = ?",
+                (email, usuario_id)
+            )
+        else:
+            return False, "Nenhum campo para atualizar"
+
+        conn.commit()
+        logger.info(f"Usuário {usuario_id} atualizado")
+        return True, "Dados atualizados com sucesso!"
+
+    except Exception as e:
+        logger.error(f"Erro ao atualizar usuário: {e}")
+        return False, f"Erro ao atualizar usuário: {e}"
+    finally:
+        conn.close()
+
+def alterar_senha(usuario_id, senha_atual, nova_senha, confirmar_senha):
+    """
+    Altera a senha do usuário
+
+    Args:
+        usuario_id: ID do usuário
+        senha_atual: Senha atual para validação
+        nova_senha: Nova senha
+        confirmar_senha: Confirmação da nova senha
+
+    Returns:
+        Tupla (sucesso, mensagem)
+    """
+    try:
+        # Validações
+        ok, msg = validar_senha(nova_senha)
+        if not ok:
+            return False, msg
+
+        ok, msg = senhas_conferem(nova_senha, confirmar_senha)
+        if not ok:
+            return False, msg
+
+        conn = conectar_db()
+        cursor = conn.cursor()
+
+        # Busca senha atual
+        cursor.execute("SELECT senha_hash FROM usuarios WHERE id = ?", (usuario_id,))
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            return False, "Usuário não encontrado"
+
+        # Verifica senha atual
+        if not bcrypt.checkpw(senha_atual.encode('utf-8'), resultado[0]):
+            return False, "Senha atual incorreta"
+
+        # Atualiza senha
+        nova_senha_hash = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt())
+        cursor.execute(
+            "UPDATE usuarios SET senha_hash = ? WHERE id = ?",
+            (nova_senha_hash, usuario_id)
+        )
+
+        conn.commit()
+        logger.info(f"Senha alterada para usuário {usuario_id}")
+        return True, "Senha alterada com sucesso!"
+
+    except Exception as e:
+        logger.error(f"Erro ao alterar senha: {e}")
+        return False, f"Erro ao alterar senha: {e}"
+    finally:
+        conn.close()
+
+def deletar_usuario(usuario_id, senha):
+    """
+    Deleta a conta do usuário (desativa)
+
+    Args:
+        usuario_id: ID do usuário
+        senha: Senha para confirmação
+
+    Returns:
+        Tupla (sucesso, mensagem)
+    """
+    try:
+        conn = conectar_db()
+        cursor = conn.cursor()
+
+        # Busca usuário e senha
+        cursor.execute("SELECT senha_hash, email FROM usuarios WHERE id = ?", (usuario_id,))
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            return False, "Usuário não encontrado"
+
+        # Verifica senha
+        if not bcrypt.checkpw(senha.encode('utf-8'), resultado[0]):
+            return False, "Senha incorreta"
+
+        # Desativa conta (não deleta fisicamente)
+        cursor.execute(
+            "UPDATE usuarios SET ativo = 0 WHERE id = ?",
+            (usuario_id,)
+        )
+
+        conn.commit()
+        logger.info(f"Conta desativada: {resultado[1]}")
+        return True, "Conta desativada com sucesso"
+
+    except Exception as e:
+        logger.error(f"Erro ao deletar usuário: {e}")
+        return False, f"Erro ao deletar usuário: {e}"
     finally:
         conn.close()
