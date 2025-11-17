@@ -1,10 +1,10 @@
 """
-Módulo de inicialização do pacote database do PETDOR.
+Inicialização do pacote database do PETDOR.
 
-Expõe módulos para importação.
+Expõe apenas o módulo migration, 
+pois connection.py não está mais dentro da pasta.
 """
 
-from .connection import conectar_db
 from .migration import criar_tabelas
 
-__all__ = ["conectar_db", "criar_tabelas"]
+__all__ = ["criar_tabelas"]
