@@ -1,74 +1,135 @@
 """
-Página de Recuperação de Senha
+🔑 Página de Recuperação de Senha
 """
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path
+root_path = Path(__file__).parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
 import streamlit as st
-from auth.password_reset import gerar_token_reset
-from utils.validators import validar_email
+from auth.password_reset import criar_token_reset, buscar_usuario_por_email
+from utils.email_sender import enviar_email_reset
 
-def render_recuperar_senha_page():
-    """Renderiza página de recuperação de senha"""
+# Configuração da página
+st.set_page_config(
+    page_title="Recuperar Senha - PETDor",
+    page_icon="🔑",
+    layout="centered"
+)
 
+
+def main():
+    """Renderiza a página de recuperação de senha"""
+
+    # Header
     st.markdown("""
-    <div class="wellness-card" style="max-width: 500px; margin: 2rem auto;">
-        <h2 style="color: #2d3748; text-align: center; margin-bottom: 1rem;">
-            🔓 Recuperar Senha
-        </h2>
-        <p style="color: #718096; text-align: center; margin-bottom: 2rem;">
-            Enviaremos um link de redefinição para seu e-mail
+    <div style="text-align: center; padding: 2rem 1rem;">
+        <h1 style="color: #2d3748; margin-bottom: 0.5rem;">🔑 Recuperar Senha</h1>
+        <p style="color: #718096; font-size: 1.1rem;">
+            Enviaremos um link para redefinir sua senha
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Formulário
-    with st.form("form_recuperar", clear_on_submit=False):
+    # Formulário de recuperação
+    with st.form("recuperar_senha_form", clear_on_submit=False):
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #AEE3FF, #C7F9CC); 
+                    padding: 2rem; border-radius: 15px; margin: 2rem 0;">
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📧 **Como funciona:**
+        1. Digite seu e-mail cadastrado
+        2. Clique em "Enviar Link"
+        3. Verifique sua caixa de entrada
+        4. Clique no link recebido para redefinir sua senha
+
+        ⏱️ O link expira em 1 hora por segurança.
+        """)
+
         email = st.text_input(
-            "📧 E-mail Cadastrado",
-            placeholder="seu-email@exemplo.com",
+            "📧 E-mail cadastrado",
+            placeholder="seu@email.com",
             help="Digite o e-mail usado no cadastro"
         )
 
-        submitted = st.form_submit_button(
-            "Enviar Link de Recuperação",
-            type="primary",
-            use_container_width=True
-        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            submitted = st.form_submit_button(
+                "📧 Enviar Link",
+                use_container_width=True,
+                type="primary"
+            )
+
+        with col2:
+            if st.form_submit_button("❌ Limpar", use_container_width=True):
+                st.rerun()
+
+    # Processa recuperação
     if submitted:
         if not email:
-            st.warning("⚠️ Digite seu e-mail")
-            return
-
-        valid, msg = validar_email(email)
-        if not valid:
-            st.error(f"❌ {msg}")
-            return
-
-        # Gera token e envia e-mail
-        with st.spinner("Enviando e-mail..."):
-            sucesso, mensagem = gerar_token_reset(email)
-
-        if sucesso:
-            st.success(f"✅ {mensagem}")
-            st.info("""
-            📧 **Verifique sua caixa de entrada** (e também a pasta de spam)
-
-            O link expira em 1 hora.
-            """)
+            st.error("⚠️ Digite seu e-mail")
         else:
-            st.error(f"❌ {mensagem}")
+            with st.spinner("Processando..."):
+                # Verifica se o email existe
+                usuario = buscar_usuario_por_email(email)
 
-    # Informações adicionais
-    with st.expander("ℹ️ Não recebeu o e-mail?"):
-        st.markdown("""
-        **Verifique:**
-        - Caixa de spam/lixo eletrônico
-        - Se o e-mail está correto
-        - Aguarde alguns minutos (pode demorar)
+                if not usuario:
+                    # Por segurança, não informamos se o email existe ou não
+                    st.success("""
+                    ✅ **Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.**
 
-        **Limite de tentativas:**
-        - Máximo 3 solicitações por dia
-        - Link válido por 1 hora
+                    📧 Verifique sua caixa de entrada (e spam) nos próximos minutos.
+                    """)
+                else:
+                    # Gera token
+                    sucesso_token, token = criar_token_reset(usuario['id'])
 
-        **Ainda com problemas?**
-        Entre em contato: suporte@petdor.com
-        """)
+                    if sucesso_token:
+                        # Envia email
+                        sucesso_email, mensagem_email = enviar_email_reset(email, token)
+
+                        if sucesso_email:
+                            st.success("""
+                            ✅ **Link de recuperação enviado com sucesso!**
+
+                            📧 Verifique sua caixa de entrada (e spam).
+
+                            ⏱️ O link expira em 1 hora.
+                            """)
+
+                            st.info(f"📨 {mensagem_email}")
+                        else:
+                            st.error(f"❌ Erro ao enviar e-mail: {mensagem_email}")
+                    else:
+                        st.error("❌ Erro ao gerar token de recuperação")
+
+    # Links úteis
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🔐 Fazer Login", use_container_width=True):
+            st.switch_page("pages/login.py")
+
+    with col2:
+        if st.button("📝 Criar Conta", use_container_width=True):
+            st.switch_page("pages/cadastro.py")
+
+    # Voltar para home
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("🏠 Voltar para Home", use_container_width=True):
+        st.switch_page("app.py")
+
+
+if __name__ == "__main__":
+    main()
