@@ -1,10 +1,9 @@
 """
-Inicialização do pacote database do PETDOR.
-
-Expõe apenas o módulo migration, 
-pois connection.py não está mais dentro da pasta.
+Pacote database do PETDOR.
+Inicializa e migra o banco.
 """
 
-from .migration import criar_tabelas
+from .connection import conectar_db
+from .migration import migrar_banco_completo
 
-__all__ = ["criar_tabelas"]
+__all__ = ["conectar_db", "migrar_banco_completo"]
