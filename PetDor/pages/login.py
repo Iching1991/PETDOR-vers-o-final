@@ -1,146 +1,102 @@
 """
-🔐 Página de Login
+📥 Página de Login - PETDor
+Responsável por:
+- Receber email e senha
+- Autenticar o usuário (módulo auth.user)
+- Salvar dados da sessão
+- Redirecionar automaticamente para a página de avaliação de dor
 """
+
 import sys
 from pathlib import Path
 
+# --------------------------------------------------------------
+# 1️⃣  Garante que a raiz do projeto esteja no sys.path
+# --------------------------------------------------------------
 root_path = Path(__file__).parent.parent
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
 import streamlit as st
 from auth.user import autenticar_usuario
+from config import APP_CONFIG
 
+# --------------------------------------------------------------
+# 2️⃣  Configurações da página (conforme preferência)
+# --------------------------------------------------------------
 st.set_page_config(
-    page_title="Login - PETDor",
+    page_title="Login - " + APP_CONFIG["titulo"],
     page_icon="🔐",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 
 def main():
-    """Renderiza a página de login"""
+    """Renderiza a tela de login e trata a autenticação"""
 
     # Header
-    st.markdown("""
-    <div style="text-align: center; padding: 2rem 1rem;">
-        <h1 style="color: #2d3748; margin-bottom: 0.5rem;">🔐 Login</h1>
-        <p style="color: #718096; font-size: 1.1rem;">
-            Acesse sua conta no PETDor
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="text-align:center; padding:2rem ;">
+            <h1 style="color:#2d3748;">🔐 Login</h1>
+            <p style="color:#718096; font-size:1.1rem;">
+                Acesse sua conta para avaliar a dor do seu pet
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Formulário de login
     with st.form("login_form"):
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #AEE3FF, #C7F9CC); 
-                    padding: 2rem; border-radius: 15px; margin: 2rem 0;">
-        """, unsafe_allow_html=True)
-
         email = st.text_input(
-            "📧 E-mail",
+            "📧 E‑mail",
             placeholder="seu@email.com",
-            help="Digite seu e-mail cadastrado"
+            help="O e‑mail será convertido para minúsculas automaticamente",
         )
-
         senha = st.text_input(
             "🔒 Senha",
             type="password",
             placeholder="••••••••",
-            help="Digite sua senha"
+        )
+        submitted = st.form_submit_button(
+            "Entrar",
+            use_container_width=True,
+            type="primary",
         )
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    if submitted:
+        # Normaliza o e‑mail (lower‑case) antes de enviar ao backend
+        email_normalizado = email.strip().lower()
 
-        col1, col2 = st.columns([3, 1])
+        sucesso, mensagem, usuario_id = autenticar_usuario(email_normalizado, senha)
 
-        with col1:
-            enviado = st.form_submit_button(
-                "🔐 Entrar",
-                use_container_width=True,
-                type="primary"
-            )
+        if sucesso:
+            # ------------------------------------------------------
+            # 3️⃣  Salva informações da sessão
+            # ------------------------------------------------------
+            st.session_state["usuario_id"] = usuario_id
+            st.session_state["logado"] = True
 
-        with col2:
-            limpar = st.form_submit_button(
-                "🔄 Limpar",
-                use_container_width=True
-            )
+            st.success(mensagem)
 
-    # Processa login
-    if enviado:
-        if not email or not senha:
-            st.error("❌ Preencha todos os campos")
+            # ------------------------------------------------------
+            # 4️⃣  Redireciona para a página de avaliação
+            # ------------------------------------------------------
+            # Se estiver usando Streamlit >= 1.22, pode usar `st.switch_page`
+            # Caso contrário, usamos `st.experimental_rerun` e mudamos a URL
+            try:
+                # Streamlit 1.22+ (recomendado)
+                st.switch_page("pages/avaliacao.py")
+            except AttributeError:
+                # Versões anteriores – força recarregamento da aplicação
+                # e, na próxima execução, a lógica de redirecionamento
+                # no app principal levará o usuário para /avaliacao
+                st.experimental_rerun()
         else:
-            with st.spinner("Autenticando..."):
-                sucesso, mensagem, usuario_id = autenticar_usuario(email, senha)
-
-            if sucesso:
-                # Salva dados na sessão
-                st.session_state['usuario_id'] = usuario_id
-                st.session_state['usuario_logado'] = True
-
-                st.success(f"✅ {mensagem}")
-                st.balloons()
-
-                # Aguarda um momento e redireciona
-                import time
-                time.sleep(1)
-
-                # Redireciona para avaliação
-                st.markdown("""
-                <meta http-equiv="refresh" content="0; url=/avaliacao">
-                """, unsafe_allow_html=True)
-
-                # Fallback com JavaScript
-                st.markdown("""
-                <script>
-                    window.location.href = '/avaliacao';
-                </script>
-                """, unsafe_allow_html=True)
-
-                st.stop()
-            else:
-                st.error(f"❌ {mensagem}")
-
-    # Links adicionais
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("""
-        <a href="/cadastro" target="_self">
-            <button style="background: #2196F3; color: white; padding: 10px 20px; 
-                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
-                📝 Criar Conta
-            </button>
-        </a>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <a href="/recuperar_senha" target="_self">
-            <button style="background: #FF9800; color: white; padding: 10px 20px; 
-                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
-                🔑 Esqueci a Senha
-            </button>
-        </a>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <a href="/" target="_self">
-        <button style="background: #607D8B; color: white; padding: 10px 20px; 
-                       border: none; border-radius: 8px; cursor: pointer; width: 100%;">
-            🏠 Voltar para Home
-        </button>
-    </a>
-    """, unsafe_allow_html=True)
+            st.error(mensagem)
 
 
 if __name__ == "__main__":
     main()
-
