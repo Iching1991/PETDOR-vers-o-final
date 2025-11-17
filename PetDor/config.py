@@ -1,8 +1,5 @@
-"""
-Configurações do PETDor
-"""
-from pathlib import Path
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,13 +8,14 @@ load_dotenv()
 ROOT_DIR = Path(__file__).parent
 
 # Banco de dados
-DATABASE_PATH = ROOT_DIR / "petdor.db"
+# Você pode usar variável de ambiente para mudar facilmente o local do banco sem alterar o código
+DATABASE_PATH = os.getenv("DATABASE_PATH", "C:/Databases/petdor.db") 
 
 # Configurações do app
 APP_CONFIG = {
     'titulo': 'PETDor',
     'versao': '1.0.0',
-    'autor': 'PETDor Team'
+    'autor': 'Salute Vitae AI'
 }
 
 # Configurações de email (GoDaddy)
@@ -28,4 +26,5 @@ EMAIL_CONFIG = {
     'usuario': os.getenv('EMAIL_USER', 'contato@petdor.app'),
     'senha': os.getenv('EMAIL_PASSWORD', '')
 }
+
 
