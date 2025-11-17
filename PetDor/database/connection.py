@@ -1,7 +1,6 @@
 """
 Conexão central do banco SQLite do PETDOR
 """
-
 import sqlite3
 import os
 from pathlib import Path
@@ -9,8 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Caminho absoluto do banco
-ROOT_DIR = Path(__file__).resolve().parent.parent  # PetDor/
+ROOT_DIR = Path(__file__).resolve().parent.parent  # raiz PetDor/
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "petdor.db"))
 
 def conectar_db():
