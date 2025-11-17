@@ -1,5 +1,5 @@
 """
-📥 Página de Login - PETDor
+📥 Página de Login - PETDOR
 
 Responsável por:
 - Receber email e senha
@@ -22,7 +22,7 @@ from config import APP_CONFIG
 
 # Configuração da página
 st.set_page_config(
-    page_title="Login - PETDor",
+    page_title="Login - PETDOR",
     page_icon="🔐",
     layout="centered"
 )
@@ -36,7 +36,7 @@ def main():
     <div style="text-align: center; padding: 2rem 1rem;">
         <h1 style="color: #2d3748; margin-bottom: 0.5rem;">🔐 Login</h1>
         <p style="color: #718096; font-size: 1.1rem;">
-            Entre com sua conta no PETDor
+            Entre com sua conta no PETDOR
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -126,3 +126,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
