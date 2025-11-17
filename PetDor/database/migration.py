@@ -1,24 +1,36 @@
+# PetDor/database/migration.py
 """
-Sistema de migração do banco de dados PETDOR.
-Criação e manutenção das tabelas oficiais do sistema.
+Sistema unificado de migração e criação de tabelas do PETDOR.
 """
 
+import sqlite3
 import logging
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from config import DATABASE_PATH
 from .connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
 
-def migrar_banco_completo():
-    """Executa todas as migrações e cria tabelas se necessário."""
+def criar_tabelas():
+    """
+    Cria todas as tabelas essenciais do PETDOR.
+    """
     try:
         conn = conectar_db()
-        c = conn.cursor()
+        cursor = conn.cursor()
 
-        # ---------------------- #
-        # Tabela de Usuários
-        # ---------------------- #
-        c.execute("""
+        # -------------------------------
+        # Usuários
+        # -------------------------------
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
@@ -29,10 +41,10 @@ def migrar_banco_completo():
             )
         """)
 
-        # ---------------------- #
+        # -------------------------------
         # Pets
-        # ---------------------- #
-        c.execute("""
+        # -------------------------------
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS pets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tutor_id INTEGER NOT NULL,
@@ -46,10 +58,10 @@ def migrar_banco_completo():
             )
         """)
 
-        # ---------------------- #
+        # -------------------------------
         # Avaliações
-        # ---------------------- #
-        c.execute("""
+        # -------------------------------
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS avaliacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pet_id INTEGER NOT NULL,
@@ -62,10 +74,10 @@ def migrar_banco_completo():
             )
         """)
 
-        # ---------------------- #
-        # Recuperação de senha
-        # ---------------------- #
-        c.execute("""
+        # -------------------------------
+        # Reset de Senha
+        # -------------------------------
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS password_resets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 usuario_id INTEGER NOT NULL,
@@ -79,11 +91,15 @@ def migrar_banco_completo():
 
         conn.commit()
         conn.close()
-
-        logger.info("Migração concluída com sucesso!")
-        return True
+        logger.info("Migrações executadas com sucesso.")
 
     except Exception as e:
         logger.error(f"Erro na migração: {e}")
         raise
 
+
+def migrar_banco_completo():
+    """
+    Função única usada pelo app.py
+    """
+    criar_tabelas()
