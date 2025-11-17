@@ -1,19 +1,9 @@
 # PetDor/database/migration.py
 """
-Sistema unificado de migração e criação de tabelas do PETDOR.
+Sistema unificado de migração do PETDOR.
 """
 
-import sqlite3
 import logging
-from pathlib import Path
-import sys
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
-
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-from config import DATABASE_PATH
 from .connection import conectar_db
 
 logger = logging.getLogger(__name__)
@@ -21,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def criar_tabelas():
     """
-    Cria todas as tabelas essenciais do PETDOR.
+    Cria todas as tabelas essenciais.
     """
     try:
         conn = conectar_db()
@@ -38,7 +28,7 @@ def criar_tabelas():
                 senha_hash TEXT NOT NULL,
                 data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
                 ativo INTEGER DEFAULT 1
-            )
+            );
         """)
 
         # -------------------------------
@@ -54,8 +44,8 @@ def criar_tabelas():
                 idade INTEGER,
                 peso REAL,
                 data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
+                FOREIGN KEY (tutor_id) REFERENCES usuarios(id)
+            );
         """)
 
         # -------------------------------
@@ -69,13 +59,13 @@ def criar_tabelas():
                 percentual_dor REAL NOT NULL,
                 observacoes TEXT,
                 data_avaliacao TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
+                FOREIGN KEY (pet_id) REFERENCES pets(id),
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+            );
         """)
 
         # -------------------------------
-        # Reset de Senha
+        # Reset Senha
         # -------------------------------
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS password_resets (
@@ -85,13 +75,13 @@ def criar_tabelas():
                 expires_at TEXT NOT NULL,
                 used INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+            );
         """)
 
         conn.commit()
         conn.close()
-        logger.info("Migrações executadas com sucesso.")
+        logger.info("Migração executada com sucesso!")
 
     except Exception as e:
         logger.error(f"Erro na migração: {e}")
@@ -99,7 +89,6 @@ def criar_tabelas():
 
 
 def migrar_banco_completo():
-    """
-    Função única usada pelo app.py
-    """
+    """Função chamada pelo app.py"""
     criar_tabelas()
+
