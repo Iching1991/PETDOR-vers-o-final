@@ -10,7 +10,7 @@ if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
 import streamlit as st
-from auth.user import autenticar_usuario
+from auth.user import autenticar_usuario, buscar_usuario_por_id
 
 # Configuração da página
 st.set_page_config(
@@ -66,7 +66,7 @@ def main():
 
         with col2:
             if st.form_submit_button("❌ Limpar", use_container_width=True):
-                st.rerun()
+                st.experimental_rerun()
 
     # Processa login
     if submitted:
@@ -82,7 +82,6 @@ def main():
                     st.session_state['email'] = email
 
                     # Busca dados completos do usuário
-                    from auth.user import buscar_usuario_por_id
                     usuario_data = buscar_usuario_por_id(usuario_id)
 
                     if usuario_data:
@@ -93,9 +92,10 @@ def main():
                     st.balloons()
 
                     # Redireciona para home
-                    import time
-                    time.sleep(1)
-                    st.switch_page("app.py")
+                    st.markdown("""
+                    <meta http-equiv="refresh" content="1; url=/">
+                    """, unsafe_allow_html=True)
+                    st.info("Redirecionando para o sistema...")
                 else:
                     st.error(f"❌ {mensagem}")
 
@@ -105,18 +105,36 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("📝 Criar conta", use_container_width=True):
-            st.switch_page("pages/cadastro.py")
+        st.markdown("""
+        <a href="/cadastro" target="_self">
+            <button style="background: #4CAF50; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                📝 Criar conta
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     with col2:
-        if st.button("🔑 Esqueci a senha", use_container_width=True):
-            st.switch_page("pages/recuperar_senha.py")
+        st.markdown("""
+        <a href="/recuperar_senha" target="_self">
+            <button style="background: #FF9800; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                🔑 Esqueci a senha
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     # Voltar para home
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("🏠 Voltar para Home", use_container_width=True):
-        st.switch_page("app.py")
+    st.markdown("""
+    <a href="/" target="_self">
+        <button style="background: #607D8B; color: white; padding: 10px 20px; 
+                       border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+            🏠 Voltar para Home
+        </button>
+    </a>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
