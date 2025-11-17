@@ -19,6 +19,7 @@ if str(root_path) not in sys.path:
 
 import streamlit as st
 from auth.user import buscar_usuario_por_id
+from database.models import buscar_usuario_por_id
 from database.connection import conectar_db
 from config import APP_CONFIG
 
@@ -272,3 +273,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
