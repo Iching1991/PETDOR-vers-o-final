@@ -1,0 +1,24 @@
+<!-- assets/logo.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="420" height="120">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0" stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Paw simplified -->
+  <g transform="translate(10,0)" fill="url(#g1)">
+    <circle cx="36" cy="28" r="10"/>
+    <circle cx="18" cy="18" r="8"/>
+    <circle cx="54" cy="18" r="8"/>
+    <path d="M24 44c0 11 12 20 24 20s24-9 24-20c0-11-12-20-24-20S24 33 24 44z" />
+  </g>
+
+  <!-- Text -->
+  <g transform="translate(120,60)">
+    <text x="0" y="-10" font-family="Inter, sans-serif" font-weight="700" font-size="36" fill="#E6EEF8">PET</text>
+    <text x="78" y="-10" font-family="Inter, sans-serif" font-weight="700" font-size="36" fill="#7DD3FC">DOR</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-weight="400" font-size="12" fill="#94A3B8">Avaliação profissional de dor em animais</text>
+  </g>
+</svg>
