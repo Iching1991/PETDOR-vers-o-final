@@ -1,22 +1,12 @@
-# especies/__init__.py
-from .gatos import GATOS_CONFIG
-from .gatos import Pergunta, EspecieConfig  # exportar para compatibilidade (se necessário)
+"""
+Módulo de perguntas por espécie do PETDor
 
-_ESPECIES_MAP = {
-    "Gato": GATOS_CONFIG,
-    # adicione aqui outras espécies: "Cão": CAO_CONFIG, etc.
-}
+Contém perguntas específicas para avaliação de dor por espécie:
+- base: classes base para perguntas e configurações
+- Cão: perguntas para cães
+- Gato: perguntas para gatos
+"""
 
+from . import base, cao, gato
 
-def get_especies_nomes():
-    """Retorna lista de nomes de espécies disponíveis."""
-    return list(_ESPECIES_MAP.keys())
-
-
-def get_especie_config(nome: str):
-    """Retorna o objeto EspecieConfig para a espécie solicitada.
-    Lança KeyError se não existir.
-    """
-    if nome not in _ESPECIES_MAP:
-        raise KeyError(f"Espécie '{nome}' não encontrada")
-    return _ESPECIES_MAP[nome]
+__all__ = ["base", "cao", "gato"]
