@@ -17,6 +17,7 @@ from database.models import (
     buscar_avaliacoes_usuario,
     get_estatisticas_usuario
 )
+from database.models import buscar_usuario_por_email, buscar_usuario_por_id
 from auth.user import buscar_usuario_por_id
 import logging
 
