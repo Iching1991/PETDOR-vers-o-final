@@ -1,37 +1,34 @@
+# PetDor/app.py
 import streamlit as st
-import sqlite3
 import bcrypt
 from datetime import datetime
 from fpdf import FPDF
-import time
-import urllib.parse
 
-# ---------------------------------------------
-# 🔌 Conexão + Inicialização do Banco (unificado)
-# ---------------------------------------------
-from connection import conectar_db, init_database
-from database import migrar_banco_completo
+# -------------------------------
+# 🔌 Conexão + Migração
+# -------------------------------
+from database.connection import conectar_db
+from database.migration import migrar_banco_completo
 
-# ---------------------------------------------
-# 🔰 Inicialização automática do banco
-# ---------------------------------------------
-init_database()
-migrar_banco_completo()
+# -------------------------------
+# 🔰 Inicialização do banco
+# -------------------------------
+migrar_banco_completo()  # cria todas as tabelas se não existirem
 
 st.set_page_config(page_title="PETDOR – Avaliação de Dor", layout="centered")
 
-# ---------------------------------------------
+# -------------------------------
 # 📌 Funções auxiliares
-# ---------------------------------------------
+# -------------------------------
 def criar_hash(senha):
     return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
 def validar_senha(senha, senha_hash):
     return bcrypt.checkpw(senha.encode(), senha_hash.encode())
 
-# ---------------------------------------------
+# -------------------------------
 # 🔐 Autenticação
-# ---------------------------------------------
+# -------------------------------
 def login(email, senha):
     conn = conectar_db()
     cur = conn.cursor()
@@ -39,85 +36,76 @@ def login(email, senha):
     user = cur.fetchone()
     conn.close()
 
-    if user and validar_senha(senha, user["senha"]):
+    if user and validar_senha(senha, user["senha_hash"]):
         return user
     return None
-
 
 def cadastrar_usuario(nome, email, senha):
     conn = conectar_db()
     cur = conn.cursor()
-
     senha_hash = criar_hash(senha)
-    cur.execute("""
-        INSERT INTO usuarios (nome, email, senha_hash)
-        VALUES (?, ?, ?)
-    """, (nome, email, senha_hash))
-
+    cur.execute(
+        "INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)",
+        (nome, email, senha_hash)
+    )
     conn.commit()
     conn.close()
     return True
 
-
+# -------------------------------
+# 🔑 Reset de senha
+# -------------------------------
 def reset_password_request(email):
     conn = conectar_db()
     cur = conn.cursor()
-
     cur.execute("SELECT id FROM usuarios WHERE email = ?", (email,))
     user = cur.fetchone()
-
     if not user:
         return None
 
     token = bcrypt.gensalt().decode()
     exp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cur.execute("""
-        INSERT INTO password_resets (usuario_id, token, expires_at)
-        VALUES (?, ?, ?)
-    """, (user["id"], token, exp))
-
+    cur.execute(
+        "INSERT INTO password_resets (usuario_id, token, expires_at) VALUES (?, ?, ?)",
+        (user["id"], token, exp)
+    )
     conn.commit()
     conn.close()
-
     return token
-
 
 def reset_password(token, nova_senha):
     conn = conectar_db()
     cur = conn.cursor()
-
-    cur.execute("SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0", (token,))
+    cur.execute(
+        "SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0",
+        (token,)
+    )
     pr = cur.fetchone()
-
     if not pr:
         return False
 
     senha_hash = criar_hash(nova_senha)
-
-    cur.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (senha_hash, pr["usuario_id"]))
+    cur.execute(
+        "UPDATE usuarios SET senha_hash = ? WHERE id = ?",
+        (senha_hash, pr["usuario_id"])
+    )
     cur.execute("UPDATE password_resets SET used = 1 WHERE token = ?", (token,))
-
     conn.commit()
     conn.close()
     return True
 
-
-# ---------------------------------------------
-# 📋 Cadastro de PETS
-# ---------------------------------------------
-def cadastrar_pet(tutor_id, nome, especie, raca, peso):
+# -------------------------------
+# 📋 CRUD Pets
+# -------------------------------
+def cadastrar_pet(tutor_id, nome, especie, raca=None, peso=None):
     conn = conectar_db()
     cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO pets (tutor_id, nome, especie, raca, peso)
-        VALUES (?, ?, ?, ?, ?)
-    """, (tutor_id, nome, especie, raca, peso))
-
+    cur.execute(
+        "INSERT INTO pets (tutor_id, nome, especie, raca, peso) VALUES (?, ?, ?, ?, ?)",
+        (tutor_id, nome, especie, raca, peso)
+    )
     conn.commit()
     conn.close()
-
 
 def listar_pets(tutor_id):
     conn = conectar_db()
@@ -127,56 +115,46 @@ def listar_pets(tutor_id):
     conn.close()
     return pets
 
-
-# ---------------------------------------------
-# 📝 Avaliação
-# ---------------------------------------------
+# -------------------------------
+# 📝 Avaliações
+# -------------------------------
 def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
     conn = conectar_db()
     cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO avaliacoes (pet_id, usuario_id, percentual_dor, observacoes)
-        VALUES (?, ?, ?, ?)
-    """, (pet_id, usuario_id, percentual, observacoes))
-
+    cur.execute(
+        "INSERT INTO avaliacoes (pet_id, usuario_id, percentual_dor, observacoes) VALUES (?, ?, ?, ?)",
+        (pet_id, usuario_id, percentual, observacoes)
+    )
     conn.commit()
     conn.close()
 
-
-# ---------------------------------------------
+# -------------------------------
 # 📄 PDF
-# ---------------------------------------------
+# -------------------------------
 def gerar_pdf(nome_pet, percentual, obs):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=14)
-
     pdf.cell(0, 10, "Relatório PETDOR", ln=True)
     pdf.cell(0, 10, f"Pet: {nome_pet}", ln=True)
     pdf.cell(0, 10, f"Percentual de dor: {percentual}%", ln=True)
     pdf.multi_cell(0, 10, f"Observações:\n{obs}")
-
     filename = f"relatorio_{nome_pet}.pdf"
     pdf.output(filename)
-
     return filename
 
-
-# ---------------------------------------------
-# 🎨 Interface
-# ---------------------------------------------
+# -------------------------------
+# 🎨 Interface Streamlit
+# -------------------------------
 st.title("🐾 PETDOR – Sistema de Avaliação de Dor")
-
 menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta", "Redefinir Senha"])
 
-# ---------------------------------------------
+# -------------------------------
 # LOGIN
-# ---------------------------------------------
+# -------------------------------
 if menu == "Login":
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
-
     if st.button("Entrar"):
         user = login(email, senha)
         if user:
@@ -185,7 +163,6 @@ if menu == "Login":
         else:
             st.error("Credenciais inválidas.")
 
-    # Se logado — fluxo principal
     if "user" in st.session_state:
         user = st.session_state.user
 
@@ -205,7 +182,6 @@ if menu == "Login":
 
         if pet_selec:
             pet = next(p for p in pets if p["nome"] == pet_selec)
-
             percentual = st.slider("Percentual de Dor (%)", 0, 100, 50)
             obs = st.text_area("Observações")
 
@@ -218,24 +194,22 @@ if menu == "Login":
                 with open(filename, "rb") as f:
                     st.download_button("Baixar PDF", f, file_name=filename)
 
-# ---------------------------------------------
+# -------------------------------
 # CRIAR CONTA
-# ---------------------------------------------
+# -------------------------------
 elif menu == "Criar Conta":
     nome = st.text_input("Nome")
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
-
     if st.button("Criar"):
         cadastrar_usuario(nome, email, senha)
         st.success("Conta criada com sucesso. Faça login!")
 
-# ---------------------------------------------
+# -------------------------------
 # RESET SENHA
-# ---------------------------------------------
+# -------------------------------
 elif menu == "Redefinir Senha":
     email = st.text_input("Seu e-mail")
-
     if st.button("Enviar token"):
         token = reset_password_request(email)
         if token:
@@ -245,7 +219,6 @@ elif menu == "Redefinir Senha":
 
     token = st.text_input("Token")
     nova = st.text_input("Nova senha", type="password")
-
     if st.button("Alterar senha"):
         if reset_password(token, nova):
             st.success("Senha alterada com sucesso!")
