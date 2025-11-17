@@ -20,7 +20,7 @@ if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
 try:
-    from config import DATABASE_PATH
+    from config import DATABASE_PATH as DB_PATH_RAW
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         "❗ ERRO: Não foi possível importar 'DATABASE_PATH' do config.py.\n"
@@ -28,9 +28,16 @@ except ModuleNotFoundError:
         "Estrutura correta:\n\n"
         "PetDor/\n"
         "│ app.py\n"
-        "│ config.py  <-- OBRIGATÓRIO\n"
+        "│ config.py\n"
         "└── database/\n"
     )
+
+# -----------------------------------------
+# 📌 Caminho absoluto e seguro do banco
+# -----------------------------------------
+# Ex.: se DB_PATH_RAW = "petdor.db"
+DATABASE_PATH = str((root_path / DB_PATH_RAW).resolve())
+
 
 # -----------------------------------------
 # 🔌 Função de conexão
@@ -43,6 +50,8 @@ def conectar_db():
     """
     try:
         db_dir = os.path.dirname(DATABASE_PATH)
+
+        # Cria diretório se necessário (quando path contém pasta, ex: data/petdor.db)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
@@ -135,3 +144,5 @@ if __name__ == "__main__":
         print("Banco de dados PETDOR inicializado com sucesso!")
     else:
         print("Erro ao inicializar banco de dados.")
+
+
