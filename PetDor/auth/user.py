@@ -6,7 +6,7 @@ Gerenciamento de usuários
 import logging
 from datetime import datetime
 import bcrypt
-from connection import conectar_db
+from database.connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +68,4 @@ def autenticar_usuario(email, senha):
     except Exception as e:
         logger.error(f"Erro na autenticação: {e}")
         return False, "Erro ao fazer login", None
+
