@@ -70,7 +70,7 @@ def main():
 
         with col2:
             if st.form_submit_button("❌ Limpar", use_container_width=True):
-                st.rerun()
+                st.experimental_rerun()
 
     # Processa recuperação
     if submitted:
@@ -117,18 +117,36 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🔐 Fazer Login", use_container_width=True):
-            st.switch_page("pages/login.py")
+        st.markdown("""
+        <a href="/login" target="_self">
+            <button style="background: #2196F3; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                🔐 Fazer Login
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     with col2:
-        if st.button("📝 Criar Conta", use_container_width=True):
-            st.switch_page("pages/cadastro.py")
+        st.markdown("""
+        <a href="/cadastro" target="_self">
+            <button style="background: #4CAF50; color: white; padding: 10px 20px; 
+                           border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                📝 Criar Conta
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
 
     # Voltar para home
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("🏠 Voltar para Home", use_container_width=True):
-        st.switch_page("app.py")
+    st.markdown("""
+    <a href="/" target="_self">
+        <button style="background: #607D8B; color: white; padding: 10px 20px; 
+                       border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+            🏠 Voltar para Home
+        </button>
+    </a>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
