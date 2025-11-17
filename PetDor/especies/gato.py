@@ -13,18 +13,19 @@ CONFIG_GATOS = EspecieConfig(
     ],
     perguntas=[
         # Postura e Atividade
-        Pergunta(texto="Meu gato está com postura anormal (encolhido, rígido)", invertida=True, peso=1.0),
-        Pergunta(texto="Meu gato está menos ativo ou brincalhão", invertida=True, peso=1.0),
-        Pergunta(texto="Meu gato evita saltar ou subir em lugares", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato está com postura anormal (encolhido, rígido)", invertida=False, peso=1.0),
+        Pergunta(texto="Meu gato está menos ativo ou brincalhão", invertida=False, peso=1.0),
+        Pergunta(texto="Meu gato evita saltar ou subir em lugares", invertida=False, peso=1.0),
         # Alimentação e Higiene
-        Pergunta(texto="O apetite do meu gato reduziu", invertida=True, peso=1.0),
-        Pergunta(texto="Meu gato está se lambendo menos ou com dificuldade", invertida=True, peso=1.0),
+        Pergunta(texto="O apetite do meu gato reduziu", invertida=False, peso=1.0),
+        Pergunta(texto="Meu gato está se lambendo menos ou com dificuldade", invertida=False, peso=1.0),
         # Comportamento Social e Interação
-        Pergunta(texto="Meu gato se esconde mais ou evita contato", invertida=True, peso=1.0),
-        Pergunta(texto="Meu gato reage com dor ou agressividade ao toque", invertida=True, peso=1.0),
-        Pergunta(texto="Meu gato mia mais ou com vocalização diferente", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato se esconde mais ou evita contato", invertida=False, peso=1.0),
+        Pergunta(texto="Meu gato reage com dor ou agressividade ao toque", invertida=False, peso=1.0),
+        Pergunta(texto="Meu gato mia mais ou com vocalização diferente", invertida=False, peso=1.0),
         # Sono e Conforto
-        Pergunta(texto="Meu gato tem dificuldade para ficar confortável ou dormir", invertida=True, peso=1.0),
+        Pergunta(texto="Meu gato tem dificuldade para ficar confortável ou dormir", invertida=False, peso=1.0),
         Pergunta(texto="Meu gato dormiu bem durante a noite", invertida=False, peso=1.0),
     ]
 )
+
