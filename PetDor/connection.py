@@ -1,5 +1,6 @@
+# PetDor/connection.py
 """
-Gerenciamento de conexão SQLite do PETDOR
+Conexão central do banco SQLite do PETDOR
 """
 
 import sqlite3
@@ -9,7 +10,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Caminho absoluto do banco na raiz do projeto
 ROOT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "petdor.db"))
 
@@ -26,4 +26,3 @@ def conectar_db():
     except Exception as e:
         logger.error(f"[ERRO] Falha ao conectar ao banco: {e}")
         raise
-
