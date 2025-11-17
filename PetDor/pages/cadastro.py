@@ -23,6 +23,7 @@ st.set_page_config(
 def formatar_nome(nome):
     """
     Formata o nome com a primeira letra de cada palavra em maiúscula
+    e as demais em minúscula (Title Case)
 
     Args:
         nome: Nome a ser formatado
@@ -33,18 +34,25 @@ def formatar_nome(nome):
     if not nome:
         return ""
 
-    # Remove espaços extras e capitaliza cada palavra
-    palavras = nome.strip().split()
-    palavras_formatadas = []
+    # Remove espaços extras e converte para Title Case
+    nome_limpo = " ".join(nome.strip().split())
+    return nome_limpo.title()
 
-    for palavra in palavras:
-        # Mantém conectores em minúsculo (de, da, do, dos, das, e)
-        if palavra.lower() in ['de', 'da', 'do', 'dos', 'das', 'e']:
-            palavras_formatadas.append(palavra.lower())
-        else:
-            palavras_formatadas.append(palavra.capitalize())
 
-    return " ".join(palavras_formatadas)
+def formatar_email(email):
+    """
+    Converte email para minúsculas
+
+    Args:
+        email: Email a ser formatado
+
+    Returns:
+        Email em minúsculas
+    """
+    if not email:
+        return ""
+
+    return email.strip().lower()
 
 
 def main():
@@ -60,123 +68,104 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Inicializa valores no session_state se não existirem
-    if 'nome_input' not in st.session_state:
-        st.session_state['nome_input'] = ""
-    if 'email_input' not in st.session_state:
-        st.session_state['email_input'] = ""
-
     # Formulário de cadastro
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, #AEE3FF, #C7F9CC); 
-                padding: 2rem; border-radius: 15px; margin: 2rem 0;">
-    """, unsafe_allow_html=True)
+    with st.form("cadastro_form", clear_on_submit=False):
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #AEE3FF, #C7F9CC); 
+                    padding: 2rem; border-radius: 15px; margin: 2rem 0;">
+        """, unsafe_allow_html=True)
 
-    # Campo Nome com formatação automática
-    nome_raw = st.text_input(
-        "👤 Nome completo",
-        value=st.session_state['nome_input'],
-        placeholder="João Silva",
-        help="Digite seu nome completo (será formatado automaticamente)",
-        key="nome_field"
-    )
+        # Nome com formatação automática
+        nome = st.text_input(
+            "👤 Nome completo",
+            placeholder="João Silva",
+            help="Digite seu nome completo (será formatado automaticamente)",
+            key="nome_input"
+        )
 
-    # Formata o nome automaticamente
-    if nome_raw != st.session_state['nome_input']:
-        st.session_state['nome_input'] = formatar_nome(nome_raw)
-        st.rerun()
+        # Email com formatação automática
+        email_input = st.text_input(
+            "📧 E-mail",
+            placeholder="seu@email.com",
+            help="Digite um e-mail válido (será convertido para minúsculas)",
+            key="email_input"
+        )
 
-    nome = st.session_state['nome_input']
+        # Senha
+        senha = st.text_input(
+            "🔒 Senha",
+            type="password",
+            placeholder="••••••••",
+            help="Mínimo 6 caracteres"
+        )
 
-    # Campo Email com conversão automática para minúsculas
-    email_raw = st.text_input(
-        "📧 E-mail",
-        value=st.session_state['email_input'],
-        placeholder="seu@email.com",
-        help="Digite um e-mail válido (será convertido para minúsculas)",
-        key="email_field"
-    )
+        confirmar_senha = st.text_input(
+            "🔒 Confirmar senha",
+            type="password",
+            placeholder="••••••••",
+            help="Digite a senha novamente"
+        )
 
-    # Converte email para minúsculas automaticamente
-    if email_raw != st.session_state['email_input']:
-        st.session_state['email_input'] = email_raw.lower().strip()
-        st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    email = st.session_state['email_input']
+        # Exibe valores formatados (visualização)
+        if nome or email_input:
+            st.markdown("""
+            <div style="background: #f7fafc; padding: 1rem; border-radius: 8px; 
+                        border-left: 4px solid #3182ce; margin: 1rem 0;">
+            """, unsafe_allow_html=True)
 
-    # Campos de senha (sem formatação)
-    senha = st.text_input(
-        "🔒 Senha",
-        type="password",
-        placeholder="••••••••",
-        help="Mínimo 6 caracteres"
-    )
+            nome_formatado = formatar_nome(nome)
+            email_formatado = formatar_email(email_input)
 
-    confirmar_senha = st.text_input(
-        "🔒 Confirmar senha",
-        type="password",
-        placeholder="••••••••",
-        help="Digite a senha novamente"
-    )
+            col1, col2 = st.columns(2)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+            with col1:
+                st.markdown(f"**👤 Nome:** {nome_formatado}")
 
-    # Botões
-    col1, col2 = st.columns([3, 1])
+            with col2:
+                st.markdown(f"**📧 E-mail:** {email_formatado}")
 
-    with col1:
-        if st.button("📝 Cadastrar", use_container_width=True, type="primary"):
-            if not all([nome, email, senha, confirmar_senha]):
-                st.error("⚠️ Preencha todos os campos")
-            else:
-                with st.spinner("Cadastrando..."):
-                    sucesso, mensagem = cadastrar_usuario(nome, email, senha, confirmar_senha)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-                    if sucesso:
-                        st.success(f"✅ {mensagem}")
-                        st.balloons()
-                        st.info("👉 Faça login para acessar o sistema")
-
-                        # Limpa os campos
-                        st.session_state['nome_input'] = ""
-                        st.session_state['email_input'] = ""
-
-                        # Link para login
-                        st.markdown("---")
-                        st.markdown("""
-                        <div style="text-align: center;">
-                            <a href="/login" target="_self">
-                                <button style="background: #4CAF50; color: white; padding: 12px 24px; 
-                                               border: none; border-radius: 8px; font-size: 16px; 
-                                               cursor: pointer; width: 100%;">
-                                    🔐 Ir para Login
-                                </button>
-                            </a>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.error(f"❌ {mensagem}")
-
-    with col2:
-        if st.button("❌ Limpar", use_container_width=True):
-            st.session_state['nome_input'] = ""
-            st.session_state['email_input'] = ""
-            st.rerun()
-
-    # Preview da formatação
-    if nome or email:
-        st.markdown("---")
-        st.markdown("**👁️ Preview da formatação:**")
-
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([3, 1])
 
         with col1:
-            if nome:
-                st.info(f"**Nome formatado:**\n{nome}")
+            submitted = st.form_submit_button(
+                "📝 Cadastrar",
+                use_container_width=True,
+                type="primary"
+            )
 
         with col2:
-            if email:
-                st.info(f"**Email formatado:**\n{email}")
+            if st.form_submit_button("❌ Limpar", use_container_width=True):
+                st.rerun()
+
+    # Processa cadastro
+    if submitted:
+        if not all([nome, email_input, senha, confirmar_senha]):
+            st.error("⚠️ Preencha todos os campos")
+        else:
+            # Aplica formatação
+            nome_final = formatar_nome(nome)
+            email_final = formatar_email(email_input)
+
+            with st.spinner("Cadastrando..."):
+                sucesso, mensagem = cadastrar_usuario(nome_final, email_final, senha, confirmar_senha)
+
+                if sucesso:
+                    st.success(f"✅ {mensagem}")
+                    st.balloons()
+                    st.info("👉 Faça login para acessar o sistema")
+
+                    # Botão para ir ao login
+                    if st.button("🔐 Ir para Login", use_container_width=True, type="primary"):
+                        st.markdown("""
+                        <meta http-equiv="refresh" content="0; url=/login">
+                        """, unsafe_allow_html=True)
+                        st.info("Redirecionando...")
+                else:
+                    st.error(f"❌ {mensagem}")
 
     # Links úteis
     st.markdown("---")
@@ -206,3 +195,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+if __name__ == "__main__":
+    main()
+
