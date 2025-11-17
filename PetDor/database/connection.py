@@ -1,32 +1,46 @@
+# PetDor/database/connection.py
 """
-Gerenciamento de conexão com banco de dados SQLite do PETDOR
+Gerenciamento central de conexão com SQLite do PETDOR
 """
 
 import os
-import sys
-from pathlib import Path
 import sqlite3
 import logging
+from pathlib import Path
+import sys
 
 logger = logging.getLogger(__name__)
 
-# -----------------------------------------
-# Importa config.py
-# -----------------------------------------
+# ---------------------------------------
+# 🔍 Localiza o config.py automaticamente
+# ---------------------------------------
+ROOT_DIR = Path(__file__).resolve().parent.parent  # pasta PetDor/
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 try:
-    from config import DATABASE_PATH
-except Exception:
+    from config import DATABASE_PATH as DB_RAW
+except Exception as e:
     raise ModuleNotFoundError(
-        "❗ ERRO: Não foi possível importar DATABASE_PATH do config.py.\n"
-        "Verifique se config.py está na mesma pasta do app.py."
+        "❌ Não foi possível importar DATABASE_PATH do config.py.\n"
+        "Certifique-se de que existe um config.py na raiz do projeto."
     )
 
+# Caminho absoluto do banco
+DATABASE_PATH = str((ROOT_DIR / DB_RAW).resolve())
 
+
+# ---------------------------------------
+# 🔌 Conexão
+# ---------------------------------------
 def conectar_db():
-    """Conecta ao banco de dados usando o caminho absoluto definido no config.py."""
+    """
+    Abre conexão com SQLite e garante que a pasta existe.
+    """
     try:
-        # Garante que o diretório existe
         db_dir = os.path.dirname(DATABASE_PATH)
+
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
@@ -35,5 +49,6 @@ def conectar_db():
         return conn
 
     except Exception as e:
-        logger.error(f"Erro ao conectar ao banco: {e}")
+        logger.error(f"[ERRO] Falha ao conectar ao banco: {e}")
         raise
+
