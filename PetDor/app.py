@@ -1,52 +1,35 @@
+# PetDor/app.py
 import streamlit as st
-import bcrypt
 from datetime import datetime
 from fpdf import FPDF
+import bcrypt
+import logging
 
+# -------------------------------
+# 🔌 Conexão e Migração
+# -------------------------------
 from database.connection import conectar_db
 from database.migration import migrar_banco_completo
+from auth.user import cadastrar_usuario, autenticar_usuario
+from database.models import buscar_usuario_por_id
 
-# Inicializa banco
-migrar_banco_completo()
+# -------------------------------
+# 🔰 Inicialização do banco
+# -------------------------------
+migrar_banco_completo()  # Cria todas as tabelas se não existirem
 
-st.set_page_config(
-    page_title="PETDOR – Avaliação de Dor", 
-    layout="centered",
-)
-
-# Funções auxiliares
+# -------------------------------
+# 📌 Funções auxiliares
+# -------------------------------
 def criar_hash(senha):
     return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
 def validar_senha(senha, senha_hash):
     return bcrypt.checkpw(senha.encode(), senha_hash.encode())
 
-# Autenticação
-def login(email, senha):
-    conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
-    user = cur.fetchone()
-    conn.close()
-    if user and validar_senha(senha, user["senha_hash"]):
-        return user
-    return None
-
-def cadastrar_usuario(nome, email, senha, confirmar=None):
-    if confirmar and senha != confirmar:
-        return False
-    conn = conectar_db()
-    cur = conn.cursor()
-    senha_hash = criar_hash(senha)
-    cur.execute(
-        "INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)",
-        (nome, email, senha_hash)
-    )
-    conn.commit()
-    conn.close()
-    return True
-
-# CRUD Pets
+# -------------------------------
+# 📋 CRUD Pets
+# -------------------------------
 def cadastrar_pet(tutor_id, nome, especie, raca=None, peso=None):
     conn = conectar_db()
     cur = conn.cursor()
@@ -65,7 +48,9 @@ def listar_pets(tutor_id):
     conn.close()
     return pets
 
-# Avaliações
+# -------------------------------
+# 📝 Avaliações
+# -------------------------------
 def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
     conn = conectar_db()
     cur = conn.cursor()
@@ -76,7 +61,9 @@ def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
     conn.commit()
     conn.close()
 
-# PDF
+# -------------------------------
+# 📄 PDF
+# -------------------------------
 def gerar_pdf(nome_pet, percentual, obs):
     pdf = FPDF()
     pdf.add_page()
@@ -89,24 +76,34 @@ def gerar_pdf(nome_pet, percentual, obs):
     pdf.output(filename)
     return filename
 
-# Interface
+# -------------------------------
+# 🎨 Interface Streamlit
+# -------------------------------
+st.set_page_config(page_title="PETDOR – Avaliação de Dor", layout="centered")
 st.title("🐾 PETDOR – Sistema de Avaliação de Dor")
-menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta", "Redefinir Senha"])
 
+menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta"])
+
+# -------------------------------
 # LOGIN
+# -------------------------------
 if menu == "Login":
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
     if st.button("Entrar"):
-        user = login(email, senha)
-        if user:
-            st.success(f"Bem-vindo, {user['nome']}!")
-            st.session_state.user = user
+        ok, msg, user_id = autenticar_usuario(email, senha)
+        if ok:
+            st.success(msg)
+            st.session_state.user_id = user_id
         else:
-            st.error("Credenciais inválidas.")
+            st.error(msg)
 
-    if "user" in st.session_state:
-        user = st.session_state.user
+    # Fluxo principal após login
+    if "user_id" in st.session_state:
+        user = buscar_usuario_por_id(st.session_state.user_id)
+        st.subheader(f"Bem-vindo, {user['nome']}!")
+
+        # Cadastrar Pet
         st.subheader("Cadastrar novo Pet")
         with st.form("pet_form"):
             nome_pet = st.text_input("Nome")
@@ -117,6 +114,7 @@ if menu == "Login":
                 cadastrar_pet(user["id"], nome_pet, especie, raca, peso)
                 st.success("Pet cadastrado com sucesso!")
 
+        # Avaliações
         st.subheader("Suas avaliações")
         pets = listar_pets(user["id"])
         pet_selec = st.selectbox("Escolha o pet", [p["nome"] for p in pets] if pets else [])
@@ -132,20 +130,17 @@ if menu == "Login":
                 with open(filename, "rb") as f:
                     st.download_button("Baixar PDF", f, file_name=filename)
 
+# -------------------------------
 # CRIAR CONTA
+# -------------------------------
 elif menu == "Criar Conta":
     nome = st.text_input("Nome")
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
     confirmar = st.text_input("Confirmar senha", type="password")
     if st.button("Criar"):
-        ok = cadastrar_usuario(nome, email, senha, confirmar)
+        ok, msg = cadastrar_usuario(nome, email, senha, confirmar)
         if ok:
-            st.success("Conta criada com sucesso! Faça login.")
+            st.success(msg)
         else:
-            st.error("Erro ao criar conta. Verifique os dados.")
-
-# RESET SENHA
-elif menu == "Redefinir Senha":
-    st.info("Funcionalidade de redefinição de senha será implementada em breve.")
-
+            st.error(msg)
