@@ -21,26 +21,21 @@ if str(ROOT_DIR) not in sys.path:
 
 try:
     from config import DATABASE_PATH as DB_RAW
-except Exception as e:
+except Exception:
     raise ModuleNotFoundError(
-        "❌ Não foi possível importar DATABASE_PATH do config.py.\n"
-        "Certifique-se de que existe um config.py na raiz do projeto."
+        "❌ config.py não encontrado ou DATABASE_PATH ausente."
     )
 
-# Caminho absoluto do banco
+# Caminho absoluto unificado do banco
 DATABASE_PATH = str((ROOT_DIR / DB_RAW).resolve())
 
 
-# ---------------------------------------
-# 🔌 Conexão
-# ---------------------------------------
 def conectar_db():
     """
-    Abre conexão com SQLite e garante que a pasta existe.
+    Abre conexão com SQLite e garante criação do diretório.
     """
     try:
         db_dir = os.path.dirname(DATABASE_PATH)
-
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
@@ -51,4 +46,3 @@ def conectar_db():
     except Exception as e:
         logger.error(f"[ERRO] Falha ao conectar ao banco: {e}")
         raise
-
