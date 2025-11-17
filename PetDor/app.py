@@ -1,19 +1,16 @@
 # PetDor/app.py
 import streamlit as st
-import bcrypt
-from datetime import datetime
 from fpdf import FPDF
+from datetime import datetime
+import bcrypt
 
-# -------------------------------
-# 🔌 Conexão + Migração
-# -------------------------------
-from database.connection import conectar_db
+from connection import conectar_db
 from database.migration import migrar_banco_completo
 
 # -------------------------------
 # 🔰 Inicialização do banco
 # -------------------------------
-migrar_banco_completo()  # cria todas as tabelas se não existirem
+migrar_banco_completo()
 
 st.set_page_config(page_title="PETDOR – Avaliação de Dor", layout="centered")
 
@@ -27,30 +24,39 @@ def validar_senha(senha, senha_hash):
     return bcrypt.checkpw(senha.encode(), senha_hash.encode())
 
 # -------------------------------
-# 🔐 Autenticação
+# 🔐 Usuários
 # -------------------------------
-def login(email, senha):
+def cadastrar_usuario(nome, email, senha, confirmar):
+    if senha != confirmar:
+        return False, "As senhas não conferem"
+    if len(senha) < 6:
+        return False, "A senha deve ter pelo menos 6 caracteres"
+    
     conn = conectar_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
-    user = cur.fetchone()
-    conn.close()
-
-    if user and validar_senha(senha, user["senha_hash"]):
-        return user
-    return None
-
-def cadastrar_usuario(nome, email, senha):
-    conn = conectar_db()
-    cur = conn.cursor()
+    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email.lower().strip(),))
+    if cur.fetchone():
+        conn.close()
+        return False, "Email já cadastrado"
+    
     senha_hash = criar_hash(senha)
     cur.execute(
         "INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)",
-        (nome, email, senha_hash)
+        (nome.strip().title(), email.lower().strip(), senha_hash)
     )
     conn.commit()
     conn.close()
-    return True
+    return True, "Conta criada com sucesso!"
+
+def login(email, senha):
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email.lower().strip(),))
+    user = cur.fetchone()
+    conn.close()
+    if user and validar_senha(senha, user["senha_hash"]):
+        return user
+    return None
 
 # -------------------------------
 # 🔑 Reset de senha
@@ -58,11 +64,10 @@ def cadastrar_usuario(nome, email, senha):
 def reset_password_request(email):
     conn = conectar_db()
     cur = conn.cursor()
-    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email,))
+    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email.lower().strip(),))
     user = cur.fetchone()
     if not user:
         return None
-
     token = bcrypt.gensalt().decode()
     exp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute(
@@ -76,19 +81,12 @@ def reset_password_request(email):
 def reset_password(token, nova_senha):
     conn = conectar_db()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0",
-        (token,)
-    )
+    cur.execute("SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0", (token,))
     pr = cur.fetchone()
     if not pr:
         return False
-
     senha_hash = criar_hash(nova_senha)
-    cur.execute(
-        "UPDATE usuarios SET senha_hash = ? WHERE id = ?",
-        (senha_hash, pr["usuario_id"])
-    )
+    cur.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (senha_hash, pr["usuario_id"]))
     cur.execute("UPDATE password_resets SET used = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
@@ -149,9 +147,7 @@ def gerar_pdf(nome_pet, percentual, obs):
 st.title("🐾 PETDOR – Sistema de Avaliação de Dor")
 menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta", "Redefinir Senha"])
 
-# -------------------------------
 # LOGIN
-# -------------------------------
 if menu == "Login":
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
@@ -165,7 +161,6 @@ if menu == "Login":
 
     if "user" in st.session_state:
         user = st.session_state.user
-
         st.subheader("Cadastrar novo Pet")
         with st.form("pet_form"):
             nome_pet = st.text_input("Nome")
@@ -179,35 +174,32 @@ if menu == "Login":
         st.subheader("Suas avaliações")
         pets = listar_pets(user["id"])
         pet_selec = st.selectbox("Escolha o pet", [p["nome"] for p in pets] if pets else [])
-
         if pet_selec:
             pet = next(p for p in pets if p["nome"] == pet_selec)
             percentual = st.slider("Percentual de Dor (%)", 0, 100, 50)
             obs = st.text_area("Observações")
-
             if st.button("Registrar Avaliação"):
                 registrar_avaliacao(pet["id"], user["id"], percentual, obs)
                 st.success("Avaliação salva!")
-
             if st.button("Gerar PDF"):
                 filename = gerar_pdf(pet["nome"], percentual, obs)
                 with open(filename, "rb") as f:
                     st.download_button("Baixar PDF", f, file_name=filename)
 
-# -------------------------------
 # CRIAR CONTA
-# -------------------------------
 elif menu == "Criar Conta":
     nome = st.text_input("Nome")
     email = st.text_input("E-mail")
     senha = st.text_input("Senha", type="password")
+    confirmar = st.text_input("Confirmar senha", type="password")
     if st.button("Criar"):
-        cadastrar_usuario(nome, email, senha)
-        st.success("Conta criada com sucesso. Faça login!")
+        ok, msg = cadastrar_usuario(nome, email, senha, confirmar)
+        if ok:
+            st.success(msg)
+        else:
+            st.error(msg)
 
-# -------------------------------
 # RESET SENHA
-# -------------------------------
 elif menu == "Redefinir Senha":
     email = st.text_input("Seu e-mail")
     if st.button("Enviar token"):
@@ -216,7 +208,6 @@ elif menu == "Redefinir Senha":
             st.info(f"Token gerado: {token}\n\nCopie e cole abaixo.")
         else:
             st.error("E-mail não encontrado.")
-
     token = st.text_input("Token")
     nova = st.text_input("Nova senha", type="password")
     if st.button("Alterar senha"):
@@ -224,3 +215,5 @@ elif menu == "Redefinir Senha":
             st.success("Senha alterada com sucesso!")
         else:
             st.error("Token inválido ou expirado.")
+
+
