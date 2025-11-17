@@ -1,100 +1,52 @@
-# PetDor/app.py
 import streamlit as st
-from fpdf import FPDF
-from datetime import datetime
 import bcrypt
+from datetime import datetime
+from fpdf import FPDF
 
-from connection import conectar_db
+from database.connection import conectar_db
 from database.migration import migrar_banco_completo
 
-# -------------------------------
-# 🔰 Inicialização do banco
-# -------------------------------
+# Inicializa banco
 migrar_banco_completo()
 
-st.set_page_config(page_title="PETDOR – Avaliação de Dor", layout="centered")
+st.set_page_config(
+    page_title="PETDOR – Avaliação de Dor", 
+    layout="centered",
+)
 
-# -------------------------------
-# 📌 Funções auxiliares
-# -------------------------------
+# Funções auxiliares
 def criar_hash(senha):
     return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
 def validar_senha(senha, senha_hash):
     return bcrypt.checkpw(senha.encode(), senha_hash.encode())
 
-# -------------------------------
-# 🔐 Usuários
-# -------------------------------
-def cadastrar_usuario(nome, email, senha, confirmar):
-    if senha != confirmar:
-        return False, "As senhas não conferem"
-    if len(senha) < 6:
-        return False, "A senha deve ter pelo menos 6 caracteres"
-    
-    conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email.lower().strip(),))
-    if cur.fetchone():
-        conn.close()
-        return False, "Email já cadastrado"
-    
-    senha_hash = criar_hash(senha)
-    cur.execute(
-        "INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)",
-        (nome.strip().title(), email.lower().strip(), senha_hash)
-    )
-    conn.commit()
-    conn.close()
-    return True, "Conta criada com sucesso!"
-
+# Autenticação
 def login(email, senha):
     conn = conectar_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email.lower().strip(),))
+    cur.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
     user = cur.fetchone()
     conn.close()
     if user and validar_senha(senha, user["senha_hash"]):
         return user
     return None
 
-# -------------------------------
-# 🔑 Reset de senha
-# -------------------------------
-def reset_password_request(email):
-    conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM usuarios WHERE email = ?", (email.lower().strip(),))
-    user = cur.fetchone()
-    if not user:
-        return None
-    token = bcrypt.gensalt().decode()
-    exp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cur.execute(
-        "INSERT INTO password_resets (usuario_id, token, expires_at) VALUES (?, ?, ?)",
-        (user["id"], token, exp)
-    )
-    conn.commit()
-    conn.close()
-    return token
-
-def reset_password(token, nova_senha):
-    conn = conectar_db()
-    cur = conn.cursor()
-    cur.execute("SELECT usuario_id FROM password_resets WHERE token = ? AND used = 0", (token,))
-    pr = cur.fetchone()
-    if not pr:
+def cadastrar_usuario(nome, email, senha, confirmar=None):
+    if confirmar and senha != confirmar:
         return False
-    senha_hash = criar_hash(nova_senha)
-    cur.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (senha_hash, pr["usuario_id"]))
-    cur.execute("UPDATE password_resets SET used = 1 WHERE token = ?", (token,))
+    conn = conectar_db()
+    cur = conn.cursor()
+    senha_hash = criar_hash(senha)
+    cur.execute(
+        "INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)",
+        (nome, email, senha_hash)
+    )
     conn.commit()
     conn.close()
     return True
 
-# -------------------------------
-# 📋 CRUD Pets
-# -------------------------------
+# CRUD Pets
 def cadastrar_pet(tutor_id, nome, especie, raca=None, peso=None):
     conn = conectar_db()
     cur = conn.cursor()
@@ -113,9 +65,7 @@ def listar_pets(tutor_id):
     conn.close()
     return pets
 
-# -------------------------------
-# 📝 Avaliações
-# -------------------------------
+# Avaliações
 def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
     conn = conectar_db()
     cur = conn.cursor()
@@ -126,9 +76,7 @@ def registrar_avaliacao(pet_id, usuario_id, percentual, observacoes):
     conn.commit()
     conn.close()
 
-# -------------------------------
-# 📄 PDF
-# -------------------------------
+# PDF
 def gerar_pdf(nome_pet, percentual, obs):
     pdf = FPDF()
     pdf.add_page()
@@ -141,9 +89,7 @@ def gerar_pdf(nome_pet, percentual, obs):
     pdf.output(filename)
     return filename
 
-# -------------------------------
-# 🎨 Interface Streamlit
-# -------------------------------
+# Interface
 st.title("🐾 PETDOR – Sistema de Avaliação de Dor")
 menu = st.sidebar.selectbox("Menu", ["Login", "Criar Conta", "Redefinir Senha"])
 
@@ -193,27 +139,13 @@ elif menu == "Criar Conta":
     senha = st.text_input("Senha", type="password")
     confirmar = st.text_input("Confirmar senha", type="password")
     if st.button("Criar"):
-        ok, msg = cadastrar_usuario(nome, email, senha, confirmar)
+        ok = cadastrar_usuario(nome, email, senha, confirmar)
         if ok:
-            st.success(msg)
+            st.success("Conta criada com sucesso! Faça login.")
         else:
-            st.error(msg)
+            st.error("Erro ao criar conta. Verifique os dados.")
 
 # RESET SENHA
 elif menu == "Redefinir Senha":
-    email = st.text_input("Seu e-mail")
-    if st.button("Enviar token"):
-        token = reset_password_request(email)
-        if token:
-            st.info(f"Token gerado: {token}\n\nCopie e cole abaixo.")
-        else:
-            st.error("E-mail não encontrado.")
-    token = st.text_input("Token")
-    nova = st.text_input("Nova senha", type="password")
-    if st.button("Alterar senha"):
-        if reset_password(token, nova):
-            st.success("Senha alterada com sucesso!")
-        else:
-            st.error("Token inválido ou expirado.")
-
+    st.info("Funcionalidade de redefinição de senha será implementada em breve.")
 
