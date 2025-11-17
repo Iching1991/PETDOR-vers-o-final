@@ -1,14 +1,21 @@
+# PetDor/database/migration.py
+"""
+Criação e migração das tabelas do PETDOR
+"""
+
 import logging
 from connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
 def criar_tabelas():
+    """Cria todas as tabelas essenciais do PETDOR"""
     try:
         conn = conectar_db()
-        cursor = conn.cursor()
+        cur = conn.cursor()
 
-        cursor.execute("""
+        # Usuários
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
@@ -19,21 +26,22 @@ def criar_tabelas():
             )
         """)
 
-        cursor.execute("""
+        # Pets
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS pets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tutor_id INTEGER NOT NULL,
                 nome TEXT NOT NULL,
                 especie TEXT NOT NULL,
                 raca TEXT,
-                idade INTEGER,
                 peso REAL,
                 data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
             )
         """)
 
-        cursor.execute("""
+        # Avaliações
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS avaliacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pet_id INTEGER NOT NULL,
@@ -46,7 +54,8 @@ def criar_tabelas():
             )
         """)
 
-        cursor.execute("""
+        # Reset de senha
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS password_resets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 usuario_id INTEGER NOT NULL,
@@ -60,13 +69,11 @@ def criar_tabelas():
 
         conn.commit()
         conn.close()
-
-        logger.info("Migrações concluídas com sucesso.")
-
+        logger.info("Migração concluída com sucesso.")
     except Exception as e:
-        logger.error(f"Erro ao migrar banco: {e}")
+        logger.error(f"Erro na migração: {e}")
         raise
-
 
 def migrar_banco_completo():
     criar_tabelas()
+
