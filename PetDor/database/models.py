@@ -9,7 +9,6 @@ root_path = Path(__file__).parent.parent
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
-# Agora importe os módulos locais
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import json
@@ -17,6 +16,7 @@ import logging
 from database.connection import get_db
 
 logger = logging.getLogger(__name__)
+
 
 def salvar_avaliacao(
     usuario_id: int,
@@ -59,6 +59,7 @@ def salvar_avaliacao(
         logger.error(f"Erro ao salvar avaliação: {e}")
         return False, "Erro ao salvar avaliação."
 
+
 def buscar_avaliacoes_usuario(usuario_id: int) -> List[Dict]:
     """Busca todas as avaliações de um usuário"""
     try:
@@ -81,6 +82,7 @@ def buscar_avaliacoes_usuario(usuario_id: int) -> List[Dict]:
     except Exception as e:
         logger.error(f"Erro ao buscar avaliações: {e}")
         return []
+
 
 def buscar_avaliacao_detalhada(avaliacao_id: int, usuario_id: int) -> Optional[Dict]:
     """Busca detalhes completos de uma avaliação"""
@@ -107,6 +109,7 @@ def buscar_avaliacao_detalhada(avaliacao_id: int, usuario_id: int) -> Optional[D
         logger.error(f"Erro ao buscar avaliação detalhada: {e}")
         return None
 
+
 def deletar_avaliacao(avaliacao_id: int, usuario_id: int) -> Tuple[bool, str]:
     """Deleta uma avaliação"""
     try:
@@ -129,6 +132,7 @@ def deletar_avaliacao(avaliacao_id: int, usuario_id: int) -> Tuple[bool, str]:
     except Exception as e:
         logger.error(f"Erro ao deletar avaliação: {e}")
         return False, "Erro ao excluir avaliação."
+
 
 def get_estatisticas_usuario(usuario_id: int) -> Dict:
     """Retorna estatísticas das avaliações do usuário"""
@@ -154,3 +158,39 @@ def get_estatisticas_usuario(usuario_id: int) -> Dict:
     except Exception as e:
         logger.error(f"Erro ao buscar estatísticas: {e}")
         return {}
+
+
+def get_estatisticas_gerais_usuarios() -> Optional[Dict]:
+    """
+    Retorna estatísticas gerais dos usuários para análise
+
+    Returns:
+        dict com total_usuarios, total_ativos, total_desativados, taxa_desativacao
+    """
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM usuarios")
+            total_usuarios = cursor.fetchone()[0] or 0
+
+            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE ativo = 1")
+            total_ativos = cursor.fetchone()[0] or 0
+
+            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE ativo = 0")
+            total_desativados = cursor.fetchone()[0] or 0
+
+            taxa_desativacao = (total_desativados / total_usuarios * 100) if total_usuarios > 0 else 0
+
+            return {
+                "total_usuarios": total_usuarios,
+                "total_ativos": total_ativos,
+                "total_desativados": total_desativados,
+                "taxa_desativacao": taxa_desativacao
+            }
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar estatísticas gerais: {e}")
+        return None
+
+
