@@ -51,7 +51,7 @@ def cadastrar_usuario(nome, email, senha, confirmar_senha):
         return True, "Usuário cadastrado com sucesso!"
     except Exception as e:
         logger.error(f"Erro ao cadastrar usuário: {e}")
-        return False, fErro ao cadastrar usuário: {e}"
+        return False, f"Erro ao cadastrar usuário: {e}"  # ← CORRIGIDO AQUI
     finally:
         conn.close()
 
@@ -88,7 +88,16 @@ def buscar_usuario_por_id(usuario_id):
         cursor = conn.cursor()
         cursor.execute("SELECT id, nome, email, data_criacao FROM usuarios WHERE id = ?", (usuario_id,))
         row = cursor.fetchone()
-        return dict(row) if row else None
+
+        if row:
+            return {
+                'id': row[0],
+                'nome': row[1],
+                'email': row[2],
+                'data_criacao': row[3]
+            }
+        return None
+
     except Exception as e:
         logger.error(f"Erro ao buscar usuário: {e}")
         return None
