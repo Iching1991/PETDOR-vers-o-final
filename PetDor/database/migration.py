@@ -2,22 +2,35 @@
 Migrações do banco de dados PETDOR
 """
 
-import sys
-from pathlib import Path
-
-# Adiciona a raiz do projeto ao path
-root_path = Path(__file__).parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
-
 import sqlite3
 import logging
+from .connection import conectar
 from config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------
+# 🔧 Funções auxiliares
+# ---------------------------------------------------------
+def coluna_existe(cursor, tabela, coluna):
+    cursor.execute(f"PRAGMA table_info({tabela})")
+    colunas = [info[1] for info in cursor.fetchall()]
+    return coluna in colunas
+
+
+def adicionar_coluna(cursor, tabela, coluna, tipo):
+    if not coluna_existe(cursor, tabela, coluna):
+        cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+        print(f"✔ Coluna adicionada à tabela {tabela}: {coluna}")
+    else:
+        print(f"ℹ Coluna já existe na tabela {tabela}: {coluna}")
+
+
+# ---------------------------------------------------------
+# 🐾 MIGRAÇÕES PRINCIPAIS
+# ---------------------------------------------------------
 def criar_tabela_usuarios():
-    """Cria a tabela de usuários."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -42,16 +55,14 @@ def criar_tabela_usuarios():
         """)
         conn.commit()
         conn.close()
-        logger.info("Tabela 'usuarios' criada/verificada")
         print("✅ Tabela 'usuarios' OK")
         return True
     except Exception as e:
-        logger.error(f"Erro ao criar tabela usuarios: {e}")
         print(f"❌ Erro ao criar tabela usuarios: {e}")
         return False
 
+
 def criar_tabela_pets():
-    """Cria a tabela de pets."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -71,16 +82,14 @@ def criar_tabela_pets():
         """)
         conn.commit()
         conn.close()
-        logger.info("Tabela 'pets' criada/verificada")
         print("✅ Tabela 'pets' OK")
         return True
     except Exception as e:
-        logger.error(f"Erro ao criar tabela pets: {e}")
         print(f"❌ Erro ao criar tabela pets: {e}")
         return False
 
+
 def criar_tabela_avaliacoes():
-    """Cria a tabela de avaliações de dor."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -98,40 +107,14 @@ def criar_tabela_avaliacoes():
         """)
         conn.commit()
         conn.close()
-        logger.info("Tabela 'avaliacoes' criada/verificada")
         print("✅ Tabela 'avaliacoes' OK")
         return True
     except Exception as e:
-        logger.error(f"Erro ao criar tabela avaliacoes: {e}")
         print(f"❌ Erro ao criar tabela avaliacoes: {e}")
         return False
 
-def adicionar_colunas_desativacao():
-    """Adiciona colunas para soft delete de usuários"""
-    # ... (código fornecido) ...
-
-def adicionar_campo_admin():
-    """Adiciona campo is_admin para controle de administradores"""
-    # ... (código fornecido) ...
-
-def adicionar_campo_tipo_usuario():
-    """Adiciona campos para tipo de usuário (tutor, clinica, veterinario)"""
-    # ... (código fornecido) ...
-
-def adicionar_campos_confirmacao_email():
-    """Adiciona campos para confirmação de email."""
-    # ... (código fornecido) ...
-
-def criar_tabela_compartilhamentos():
-    """Cria tabela para compartilhamento de pets com profissionais."""
-    # ... (código fornecido) ...
-
-def criar_tabela_notificacoes():
-    """Cria tabela para notificações de dor e eventos"""
-    # ... (código fornecido) ...
 
 def criar_tabela_avaliacao_respostas():
-    """Cria a tabela para armazenar as respostas das perguntas de avaliação."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -146,51 +129,76 @@ def criar_tabela_avaliacao_respostas():
         """)
         conn.commit()
         conn.close()
-        logger.info("Tabela 'avaliacao_respostas' criada/verificada")
         print("✅ Tabela 'avaliacao_respostas' OK")
         return True
     except Exception as e:
-        logger.error(f"Erro ao criar tabela avaliacao_respostas: {e}")
         print(f"❌ Erro ao criar tabela avaliacao_respostas: {e}")
         return False
 
+
+# ---------------------------------------------------------
+# 🛠 Ajustes posteriores
+# ---------------------------------------------------------
+def migracoes_extra():
+    """Adiciona colunas que podem ter faltado historicamente"""
+    try:
+        conn = conectar()
+        cursor = conn.cursor()
+
+        print("\n🔍 Verificando colunas extras da tabela 'pets'...")
+
+        extras_pets = {
+            "raca": "TEXT",
+            "data_nascimento": "TEXT",
+            "sexo": "TEXT",
+            "peso": "REAL"
+        }
+
+        for coluna, tipo in extras_pets.items():
+            adicionar_coluna(cursor, "pets", coluna, tipo)
+
+        conn.commit()
+        conn.close()
+        return True
+
+    except Exception as e:
+        print("❌ Erro nas migrações extras:", e)
+        return False
+
+
+# ---------------------------------------------------------
+# 🚀 EXECUTAR TODAS AS MIGRAÇÕES
+# ---------------------------------------------------------
 def migrar_banco_completo():
-    """Executa todas as migrações do banco de dados"""
-    print("\n🔄 Executando migrações completas do PETDor...\n")
+    print("\n🔄 Executando migrações completas do PETDOR...\n")
 
     migracoes = [
-        ("Tabela de usuários", criar_tabela_usuarios),
-        ("Tabela de pets", criar_tabela_pets),
-        ("Tabela de avaliações", criar_tabela_avaliacoes),
-        ("Colunas de desativação", adicionar_colunas_desativacao),
-        ("Campo is_admin", adicionar_campo_admin),
-        ("Campos de tipo de usuário", adicionar_campo_tipo_usuario),
-        ("Campos de confirmação de email", adicionar_campos_confirmacao_email),
-        ("Tabela de compartilhamentos", criar_tabela_compartilhamentos),
-        ("Tabela de notificações", criar_tabela_notificacoes),
-        ("Tabela de respostas de avaliação", criar_tabela_avaliacao_respostas),
+        criar_tabela_usuarios,
+        criar_tabela_pets,
+        criar_tabela_avaliacoes,
+        criar_tabela_avaliacao_respostas,
+        migracoes_extra
     ]
 
-    sucessos = 0
+    sucesso = 0
     falhas = 0
 
-    for nome, funcao in migracoes:
-        print(f"\n📋 Migrando: {nome}...")
+    for funcao in migracoes:
+        nome = funcao.__name__
+        print(f"\n📋 Executando: {nome}...")
         if funcao():
-            sucessos += 1
+            sucesso += 1
         else:
             falhas += 1
-            print(f"⚠️ Falha em: {nome}")
 
-    print(f"\n{'='*60}")
-    print(f"✅ Migrações concluídas: {sucessos} sucessos")
-    if falhas > 0:
-        print(f"❌ Falhas: {falhas}")
-    else:
-        print("🎉 Todas as migrações executadas com sucesso!")
-    print(f"{'='*60}\n")
+    print("\n==============================================")
+    print(f"✅ Migrações bem-sucedidas: {sucesso}")
+    print(f"❌ Falhas: {falhas}")
+    print("==============================================\n")
 
     return falhas == 0
 
+
 if __name__ == "__main__":
     migrar_banco_completo()
+
