@@ -1,19 +1,9 @@
 """
-Módulo de gerenciamento de banco de dados do PETDor.
+Módulo de inicialização do pacote database do PETDor.
 
-Responsável por:
-- Conexão com SQLite
-- Inicialização de tabelas
-- Migrações de schema
-- Modelos de dados
+Expõe os módulos connection, migration e models para fácil acesso.
 """
 
-from . import connection
-from . import migration
-from . import models
+from . import connection, migration, models
 
-__all__ = [
-    "connection",
-    "migration",
-    "models",
-]
+__all__ = ["connection", "migration", "models"]
