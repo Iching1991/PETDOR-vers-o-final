@@ -7,43 +7,64 @@ import sys
 from pathlib import Path
 import sqlite3
 import logging
-from config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
-# Adiciona a raiz do projeto ao path (para garantir importação de config.py)
-root_path = Path(__file__).parent.parent
+# -----------------------------------------
+# 🔍 Localiza automaticamente o config.py
+# -----------------------------------------
+root_path = Path(__file__).resolve().parent.parent
+
+# Garante que a raiz do projeto está no Python Path
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
 
+try:
+    from config import DATABASE_PATH
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "❗ ERRO: Não foi possível importar 'DATABASE_PATH' do config.py.\n"
+        "Verifique se existe um arquivo config.py ao lado do app.py.\n"
+        "Estrutura correta:\n\n"
+        "PetDor/\n"
+        "│ app.py\n"
+        "│ config.py  <-- OBRIGATÓRIO\n"
+        "└── database/\n"
+    )
+
+# -----------------------------------------
+# 🔌 Função de conexão
+# -----------------------------------------
 def conectar_db():
     """
-    Conecta ao banco de dados SQLite e retorna a conexão.
+    Conecta ao banco de dados SQLite.
     Returns:
-        sqlite3.Connection: Conexão com o banco de dados
+        sqlite3.Connection
     """
     try:
-        # Garante que o diretório existe antes de tentar criar o arquivo do banco
         db_dir = os.path.dirname(DATABASE_PATH)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
+
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         return conn
+
     except Exception as e:
         logger.error(f"Erro ao conectar ao banco: {e}")
         raise
 
+
+# -----------------------------------------
+# 🏗 Inicialização e criação das tabelas
+# -----------------------------------------
 def init_database():
-    """
-    Inicializa o banco de dados com tabelas básicas.
-    Cria as tabelas se ainda não existirem.
-    """
+    """Cria todas as tabelas básicas se não existirem."""
     try:
         conn = conectar_db()
         cursor = conn.cursor()
 
-        # Tabela de usuários
+        # Usuários
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +76,7 @@ def init_database():
             )
         """)
 
-        # Tabela de pets
+        # Pets
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +91,7 @@ def init_database():
             )
         """)
 
-        # Tabela de avaliações
+        # Avaliações
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS avaliacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,7 +105,7 @@ def init_database():
             )
         """)
 
-        # Tabela de reset de senha
+        # Reset de senha
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS password_resets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,20 +120,18 @@ def init_database():
 
         conn.commit()
         conn.close()
-        logger.info("Banco de dados inicializado com sucesso")
+
+        logger.info("Banco de dados inicializado com sucesso!")
         return True
 
     except Exception as e:
         logger.error(f"Erro ao inicializar banco: {e}")
         return False
 
+
 if __name__ == "__main__":
-    # Inicialização manual para rodar por terminal
+    # Execução manual no terminal
     if init_database():
         print("Banco de dados PETDOR inicializado com sucesso!")
     else:
-        print("Erro ao inicializar o banco de dados.")
-
-
-
-
+        print("Erro ao inicializar banco de dados.")
