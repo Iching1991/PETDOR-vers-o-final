@@ -5,7 +5,7 @@ Gerenciamento de usuários do PETDOR
 import logging
 import bcrypt
 from datetime import datetime
-from database.connection import conectar_db
+from connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
@@ -130,3 +130,4 @@ def buscar_usuario_por_email(email):
     except Exception as e:
         logger.error(f"Erro ao buscar usuário por email: {e}")
         return None
+
