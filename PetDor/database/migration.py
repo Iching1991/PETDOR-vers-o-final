@@ -1,18 +1,17 @@
 """
-Sistema unificado de migração e criação de tabelas do PETDOR
+Criação e migração de tabelas do PETDOR
 """
-
-from database.connection import conectar_db
+from .connection import conectar_db
 import logging
 
 logger = logging.getLogger(__name__)
 
 def criar_tabelas():
     conn = conectar_db()
-    cur = conn.cursor()
+    cursor = conn.cursor()
 
     # Usuários
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
@@ -24,7 +23,7 @@ def criar_tabelas():
     """)
 
     # Pets
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS pets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tutor_id INTEGER NOT NULL,
@@ -38,7 +37,7 @@ def criar_tabelas():
     """)
 
     # Avaliações
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS avaliacoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             pet_id INTEGER NOT NULL,
@@ -51,8 +50,8 @@ def criar_tabelas():
         )
     """)
 
-    # Reset de Senha
-    cur.execute("""
+    # Reset de senha
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS password_resets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER NOT NULL,
@@ -70,4 +69,3 @@ def criar_tabelas():
 
 def migrar_banco_completo():
     criar_tabelas()
-
