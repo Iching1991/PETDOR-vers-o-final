@@ -1,175 +1,358 @@
-def vincular_profissional_ao_pet(pet_id, usuario_id, tipo_vinculo):
-    """
-    Vincula um profissional (clínica/veterinário) a um pet
+"""
+Módulo de modelos e funções de acesso a dados do PETDor.
+Contém funções para interagir com as tabelas do banco de dados.
+"""
 
-    Args:
-        pet_id: ID do pet
-        usuario_id: ID do profissional
-        tipo_vinculo: 'clinica' ou 'veterinario'
+import sqlite3
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 
-    Returns:
-        Tupla (sucesso, mensagem, vinculo_id)
-    """
+from database.connection import conectar_db # Importa a função de conexão
+
+# --- Funções para Usuários ---
+
+def buscar_usuario_por_email(email: str) -> Optional[Dict[str, Any]]:
+    """Busca um usuário pelo email."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
+    usuario = cursor.fetchone()
+    conn.close()
+    return dict(usuario) if usuario else None
+
+def buscar_usuario_por_id(usuario_id: int) -> Optional[Dict[str, Any]]:
+    """Busca um usuário pelo ID."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM usuarios WHERE id = ?", (usuario_id,))
+    usuario = cursor.fetchone()
+    conn.close()
+    return dict(usuario) if usuario else None
+
+def criar_usuario(nome: str, email: str, senha_hash: str, tipo_usuario: str = 'tutor', token_confirmacao: str = None) -> Optional[int]:
+    """Cria um novo usuário no banco de dados."""
+    conn = conectar_db()
+    cursor = conn.cursor()
     try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        # Verifica se pet existe
-        cursor.execute("SELECT id FROM pets WHERE id = ?", (pet_id,))
-        if not cursor.fetchone():
-            conn.close()
-            return False, "Pet não encontrado", None
-
-        # Verifica se usuário é do tipo correto
+        data_registro = datetime.now().isoformat()
         cursor.execute("""
-            SELECT id, tipo_usuario FROM usuarios 
-            WHERE id = ? AND tipo_usuario IN ('clinica', 'veterinario')
-        """, (usuario_id,))
-
-        row = cursor.fetchone()
-        if not row or row[1] != tipo_vinculo:
-            conn.close()
-            return False, f"Usuário deve ser do tipo {tipo_vinculo}", None
-
-        # Verifica se vínculo já existe
-        cursor.execute("""
-            SELECT id FROM vinculos_pets 
-            WHERE pet_id = ? AND usuario_id = ? AND tipo_vinculo = ?
-        """, (pet_id, usuario_id, tipo_vinculo))
-
-        if cursor.fetchone():
-            conn.close()
-            return False, "Este profissional já está vinculado a este pet", None
-
-        # Cria vínculo
-        cursor.execute("""
-            INSERT INTO vinculos_pets (pet_id, usuario_id, tipo_vinculo, ativo)
-            VALUES (?, ?, ?, 1)
-        """, (pet_id, usuario_id, tipo_vinculo))
-
-        vinculo_id = cursor.lastrowid
-
-        # Cria notificação para o tutor (se existir)
-        cursor.execute("""
-            SELECT u.id FROM vinculos_pets vp
-            JOIN usuarios u ON vp.usuario_id = u.id
-            WHERE vp.pet_id = ? AND vp.tipo_vinculo = 'tutor'
-        """, (pet_id,))
-
-        tutor_row = cursor.fetchone()
-        if tutor_row:
-            tutor_id = tutor_row[0]
-            cursor.execute("""
-                INSERT INTO notificacoes (pet_id, usuario_id_destino, tipo_notificacao, 
-                                        nivel_prioridade, mensagem)
-                VALUES (?, ?, 'vinculo_criado', 2, ?)
-            """, (pet_id, tutor_id, f"Novo profissional vinculado ao pet: {tipo_vinculo}"))
-
+            INSERT INTO usuarios (nome, email, senha, data_registro, tipo_usuario, token_confirmacao)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (nome, email, senha_hash, data_registro, tipo_usuario, token_confirmacao))
         conn.commit()
+        return cursor.lastrowid # Retorna o ID do novo usuário
+    except sqlite3.IntegrityError:
+        # Email já existe
+        return None
+    finally:
         conn.close()
 
-        logger.info(f"Vínculo criado: Pet {pet_id} - {tipo_vinculo} {usuario_id} (ID: {vinculo_id})")
-        return True, f"Profissional vinculado com sucesso!", vinculo_id
+def atualizar_usuario(usuario_id: int, **kwargs) -> bool:
+    """Atualiza campos de um usuário."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    set_clauses = []
+    values = []
+    for key, value in kwargs.items():
+        set_clauses.append(f"{key} = ?")
+        values.append(value)
 
-    except Exception as e:
-        logger.error(f"Erro ao vincular profissional: {e}")
-        return False, f"Erro ao vincular profissional: {e}", None
-
-
-def desvincular_profissional_do_pet(pet_id, usuario_id, tipo_vinculo):
-    """Remove vínculo entre pet e profissional"""
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        # Desativa vínculo (soft delete)
-        cursor.execute("""
-            UPDATE vinculos_pets 
-            SET ativo = 0, data_desativacao = CURRENT_TIMESTAMP
-            WHERE pet_id = ? AND usuario_id = ? AND tipo_vinculo = ? AND ativo = 1
-        """, (pet_id, usuario_id, tipo_vinculo))
-
-        afetados = cursor.rowcount
-
-        if afetados > 0:
-            conn.commit()
-            conn.close()
-            logger.info(f"Vínculo desativado: Pet {pet_id} - {tipo_vinculo} {usuario_id}")
-            return True, "Profissional desvinculado com sucesso!", afetados
-        else:
-            conn.close()
-            return False, "Vínculo não encontrado", 0
-
-    except Exception as e:
-        logger.error(f"Erro ao desvincular: {e}")
-        return False, f"Erro ao desvincular: {e}", 0
-
-
-def listar_profissionais_do_pet(pet_id):
-    """Lista todos os profissionais vinculados a um pet"""
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT u.id, u.nome, u.email, u.tipo_usuario, vp.data_criacao, vp.ativo
-            FROM vinculos_pets vp
-            JOIN usuarios u ON vp.usuario_id = u.id
-            WHERE vp.pet_id = ? AND vp.ativo = 1 AND u.tipo_usuario IN ('clinica', 'veterinario')
-            ORDER BY vp.data_criacao DESC
-        """, (pet_id,))
-
-        profissionais = []
-        for row in cursor.fetchall():
-            profissionais.append({
-                'id': row[0],
-                'nome': row[1],
-                'email': row[2],
-                'tipo': row[3],
-                'data_vinculo': row[4],
-                'ativo': bool(row[5])
-            })
-
+    if not set_clauses:
         conn.close()
-        return profissionais
+        return False # Nada para atualizar
 
-    except Exception as e:
-        logger.error(f"Erro ao listar profissionais: {e}")
-        return []
+    values.append(usuario_id)
+    query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = ?"
 
-
-def listar_pets_do_profissional(usuario_id):
-    """Lista todos os pets vinculados a um profissional"""
     try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT DISTINCT p.id, p.nome, p.especie, p.raca, p.idade, p.peso, u.nome as tutor_nome,
-                   vp.data_criacao as data_vinculo
-            FROM vinculos_pets vp
-            JOIN pets p ON vp.pet_id = p.id
-            JOIN usuarios u ON p.tutor_id = u.id
-            WHERE vp.usuario_id = ? AND vp.ativo = 1 AND vp.tipo_vinculo IN ('clinica', 'veterinario')
-            ORDER BY vp.data_criacao DESC
-        """, (usuario_id,))
-
-        pets = []
-        for row in cursor.fetchall():
-            pets.append({
-                'id': row[0],
-                'nome': row[1],
-                'especie': row[2],
-                'raca': row[3],
-                'idade': row[4],
-                'peso': row[5],
-                'tutor_nome': row[6],
-                'data_vinculo': row[7]
-            })
-
-        conn.close()
-        return pets
-
+        cursor.execute(query, tuple(values))
+        conn.commit()
+        return cursor.rowcount > 0
     except Exception as e:
-        logger.error(f"Erro ao listar pets do profissional: {e}")
-        return []
+        print(f"Erro ao atualizar usuário: {e}")
+        return False
+    finally:
+        conn.close()
+
+def desativar_usuario(usuario_id: int, motivo: str) -> bool:
+    """Desativa um usuário (soft delete)."""
+    data_desativacao = datetime.now().isoformat()
+    return atualizar_usuario(usuario_id, data_desativacao=data_desativacao, motivo_desativacao=motivo)
+
+def ativar_usuario(usuario_id: int) -> bool:
+    """Ativa um usuário desativado."""
+    return atualizar_usuario(usuario_id, data_desativacao=None, motivo_desativacao=None)
+
+def confirmar_email_usuario(token_confirmacao: str) -> bool:
+    """Confirma o email de um usuário usando o token."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE usuarios SET email_confirmado = 1, token_confirmacao = NULL WHERE token_confirmacao = ?", (token_confirmacao,))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao confirmar email: {e}")
+        return False
+    finally:
+        conn.close()
+
+# --- Funções para Pets ---
+
+def criar_pet(tutor_id: int, nome: str, especie: str, raca: str = None, data_nascimento: str = None, sexo: str = None, peso: float = None, observacoes: str = None) -> Optional[int]:
+    """Cria um novo pet para um tutor."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO pets (tutor_id, nome, especie, raca, data_nascimento, sexo, peso, observacoes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (tutor_id, nome, especie, raca, data_nascimento, sexo, peso, observacoes))
+        conn.commit()
+        return cursor.lastrowid
+    except Exception as e:
+        print(f"Erro ao criar pet: {e}")
+        return None
+    finally:
+        conn.close()
+
+def buscar_pets_por_tutor(tutor_id: int) -> List[Dict[str, Any]]:
+    """Busca todos os pets de um tutor."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pets WHERE tutor_id = ?", (tutor_id,))
+    pets = cursor.fetchall()
+    conn.close()
+    return [dict(pet) for pet in pets]
+
+def buscar_pet_por_id(pet_id: int) -> Optional[Dict[str, Any]]:
+    """Busca um pet pelo ID."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pets WHERE id = ?", (pet_id,))
+    pet = cursor.fetchone()
+    conn.close()
+    return dict(pet) if pet else None
+
+def atualizar_pet(pet_id: int, **kwargs) -> bool:
+    """Atualiza campos de um pet."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    set_clauses = []
+    values = []
+    for key, value in kwargs.items():
+        set_clauses.append(f"{key} = ?")
+        values.append(value)
+
+    if not set_clauses:
+        conn.close()
+        return False
+
+    values.append(pet_id)
+    query = f"UPDATE pets SET {', '.join(set_clauses)} WHERE id = ?"
+
+    try:
+        cursor.execute(query, tuple(values))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao atualizar pet: {e}")
+        return False
+    finally:
+        conn.close()
+
+def deletar_pet(pet_id: int) -> bool:
+    """Deleta um pet pelo ID."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM pets WHERE id = ?", (pet_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao deletar pet: {e}")
+        return False
+    finally:
+        conn.close()
+
+# --- Funções para Avaliações de Dor ---
+
+def buscar_avaliacoes_usuario(usuario_id: int) -> List[Dict[str, Any]]:
+    """Busca todas as avaliações de dor de um usuário, incluindo dados do pet."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            a.id AS avaliacao_id,
+            a.data_avaliacao,
+            a.percentual_dor,
+            a.observacoes,
+            p.nome AS pet_nome,
+            p.especie AS pet_especie
+        FROM avaliacoes a
+        JOIN pets p ON a.pet_id = p.id
+        WHERE a.usuario_id = ?
+        ORDER BY a.data_avaliacao DESC
+    """, (usuario_id,))
+    avaliacoes = cursor.fetchall()
+    conn.close()
+    return [dict(av) for av in avaliacoes]
+
+def buscar_avaliacao_por_id(avaliacao_id: int) -> Optional[Dict[str, Any]]:
+    """Busca uma avaliação de dor pelo ID, incluindo dados do pet."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            a.id AS avaliacao_id,
+            a.data_avaliacao,
+            a.percentual_dor,
+            a.observacoes,
+            p.nome AS pet_nome,
+            p.especie AS pet_especie,
+            p.raca AS pet_raca,
+            p.data_nascimento AS pet_data_nascimento,
+            p.sexo AS pet_sexo,
+            p.peso AS pet_peso
+        FROM avaliacoes a
+        JOIN pets p ON a.pet_id = p.id
+        WHERE a.id = ?
+    """, (avaliacao_id,))
+    avaliacao = cursor.fetchone()
+    conn.close()
+    return dict(avaliacao) if avaliacao else None
+
+def deletar_avaliacao(avaliacao_id: int) -> bool:
+    """Deleta uma avaliação de dor pelo ID."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM avaliacoes WHERE id = ?", (avaliacao_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao deletar avaliação: {e}")
+        return False
+    finally:
+        conn.close()
+
+def buscar_respostas_avaliacao(avaliacao_id: int) -> List[Dict[str, Any]]:
+    """Busca as respostas detalhadas de uma avaliação."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT pergunta_id, resposta
+        FROM avaliacao_respostas
+        WHERE avaliacao_id = ?
+        ORDER BY id
+    """, (avaliacao_id,))
+    respostas = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in respostas]
+
+# --- Funções para Compartilhamentos ---
+
+def criar_compartilhamento(pet_id: int, tutor_id: int, profissional_id: int, token_acesso: str, data_expiracao: str) -> Optional[int]:
+    """Cria um novo registro de compartilhamento de pet."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        data_compartilhamento = datetime.now().isoformat()
+        cursor.execute("""
+            INSERT INTO compartilhamentos_pet (pet_id, tutor_id, profissional_id, data_compartilhamento, token_acesso, data_expiracao)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (pet_id, tutor_id, profissional_id, data_compartilhamento, token_acesso, data_expiracao))
+        conn.commit()
+        return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        print("Erro: Token de acesso já existe ou outra violação de integridade.")
+        return None
+    finally:
+        conn.close()
+
+def buscar_compartilhamento_por_token(token_acesso: str) -> Optional[Dict[str, Any]]:
+    """Busca um compartilhamento pelo token de acesso."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM compartilhamentos_pet WHERE token_acesso = ? AND ativo = 1", (token_acesso,))
+    compartilhamento = cursor.fetchone()
+    conn.close()
+    return dict(compartilhamento) if compartilhamento else None
+
+def desativar_compartilhamento(compartilhamento_id: int) -> bool:
+    """Desativa um compartilhamento de pet."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE compartilhamentos_pet SET ativo = 0 WHERE id = ?", (compartilhamento_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao desativar compartilhamento: {e}")
+        return False
+    finally:
+        conn.close()
+
+# --- Funções para Notificações ---
+
+def criar_notificacao(usuario_id: int, pet_id: int, tipo: str, mensagem: str, nivel_prioridade: int = 2, avaliacao_id: int = None) -> Optional[int]:
+    """Cria uma nova notificação."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        data_criacao = datetime.now().isoformat()
+        cursor.execute("""
+            INSERT INTO notificacoes (usuario_id, pet_id, avaliacao_id, tipo, mensagem, nivel_prioridade, data_criacao)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (usuario_id, pet_id, avaliacao_id, tipo, mensagem, nivel_prioridade, data_criacao))
+        conn.commit()
+        return cursor.lastrowid
+    except Exception as e:
+        print(f"Erro ao criar notificação: {e}")
+        return None
+    finally:
+        conn.close()
+
+def buscar_notificacoes_usuario(usuario_id: int, lidas: bool = False) -> List[Dict[str, Any]]:
+    """Busca notificações para um usuário, filtrando por lidas/não lidas."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    query = """
+        SELECT n.*, p.nome AS pet_nome, p.especie AS pet_especie
+        FROM notificacoes n
+        JOIN pets p ON n.pet_id = p.id
+        WHERE n.usuario_id = ?
+    """
+    params = [usuario_id]
+    if not lidas:
+        query += " AND n.lida = 0"
+    query += " ORDER BY n.data_criacao DESC"
+
+    cursor.execute(query, tuple(params))
+    notificacoes = cursor.fetchall()
+    conn.close()
+    return [dict(n) for n in notificacoes]
+
+def marcar_notificacao_como_lida(notificacao_id: int) -> bool:
+    """Marca uma notificação específica como lida."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        data_leitura = datetime.now().isoformat()
+        cursor.execute("UPDATE notificacoes SET lida = 1, data_leitura = ? WHERE id = ?", (data_leitura, notificacao_id))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao marcar notificação como lida: {e}")
+        return False
+    finally:
+        conn.close()
+
+def contar_notificacoes_nao_lidas(usuario_id: int) -> int:
+    """Conta o número de notificações não lidas para um usuário."""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM notificacoes WHERE usuario_id = ? AND lida = 0", (usuario_id,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
