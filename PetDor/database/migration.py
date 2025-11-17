@@ -1,5 +1,5 @@
 import logging
-from .connection import conectar_db
+from connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
