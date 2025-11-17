@@ -5,3 +5,7 @@ pillow
 python-dateutil
 streamlit
 requests
+streamlit==1.28.1
+sqlite3
+bcrypt==4.0.1
+python-dotenv
