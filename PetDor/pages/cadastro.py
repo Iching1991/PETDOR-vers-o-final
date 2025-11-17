@@ -40,6 +40,64 @@ def main():
                     padding: 2rem; border-radius: 15px; margin: 2rem 0;">
         """, unsafe_allow_html=True)
 
+        # Tipo de usuário
+        st.markdown("### 👥 Tipo de Usuário")
+        st.info("""
+        **Escolha o perfil que melhor representa você:**
+        - **Clínica:** Para clínicas veterinárias e hospitais
+        - **Tutor:** Para donos de pets que querem monitorar a saúde
+        - **Veterinário:** Para profissionais autônomos
+        """)
+
+        col_tipo1, col_tipo2, col_tipo3 = st.columns(3)
+
+        with col_tipo1:
+            tipo_clinica = st.radio(
+                " ",
+                ["", "🏥 Clínica"],
+                key="tipo_clinica",
+                label_visibility="collapsed",
+                help="Cadastro para clínicas veterinárias e hospitais"
+            )
+
+        with col_tipo2:
+            tipo_tutor = st.radio(
+                " ",
+                ["", "👨‍👩‍👧‍👦 Tutor"],
+                key="tipo_tutor",
+                label_visibility="collapsed",
+                help="Cadastro para tutores de pets"
+            )
+
+        with col_tipo3:
+            tipo_vet = st.radio(
+                " ",
+                ["", "👨‍⚕️ Veterinário"],
+                key="tipo_vet",
+                label_visibility="collapsed",
+                help="Cadastro para veterinários autônomos"
+            )
+
+        # Determina o tipo selecionado
+        tipo_usuario = None
+        if tipo_clinica == "🏥 Clínica":
+            tipo_usuario = "clinica"
+        elif tipo_tutor == "👨‍👩‍👧‍👦 Tutor":
+            tipo_usuario = "tutor"
+        elif tipo_vet == "👨‍⚕️ Veterinário":
+            tipo_usuario = "veterinario"
+
+        # Exibe seleção
+        if tipo_usuario:
+            st.success(f"✅ Perfil selecionado: **{tipo_usuario.title()}**")
+        else:
+            st.warning("⚠️ Selecione um tipo de usuário")
+
+        st.markdown("---")
+
+        # Dados pessoais
+        st.markdown("### 👤 Dados Pessoais")
+
         nome = st.text_input(
             "👤 Nome completo",
             placeholder="João Silva",
@@ -51,6 +109,9 @@ def main():
             placeholder="seu@email.com",
             help="Digite um e-mail válido"
         )
+
+        # Senha
+        st.markdown("### 🔒ha")
 
         senha = st.text_input(
             "🔒 Senha",
@@ -83,16 +144,26 @@ def main():
 
     # Processa cadastro
     if submitted:
-        if not all([nome, email, senha, confirmar_senha]):
-            st.error("⚠️ Preencha todos os campos")
+        if not all([nome, email, senha, confirmar_senha, tipo_usuario]):
+            st.error("⚠️ Preencha todos os campos, incluindo o tipo de usuário")
+        elif senha != confirmar_senha:
+            st.error("❌ As senhas não conferem")
+        elif len(senha) < 6:
+            st.error("❌ A senha deve ter pelo menos 6 caracteres")
         else:
             with st.spinner("Cadastrando..."):
-                sucesso, mensagem = cadastrar_usuario(nome, email, senha, confirmar_senha)
+                sucesso, mensagem = cadastrar_usuario(
+                    nome, 
+                    email, 
+                    senha, 
+                    confirmar_senha,
+                    tipo_usuario=tipo_usuario  # Novo parâmetro
+                )
 
                 if sucesso:
                     st.success(f"✅ {mensagem}")
                     st.balloons()
-                    st.info("👉 Faça login para acessar o sistema")
+                    st.info(f"👉 Bem-vindo(a) ao PETDor como **{tipo_usuario.title()}**! Faça login para acessar o sistema")
 
                     # Link para login
                     st.markdown("---")
@@ -138,3 +209,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
