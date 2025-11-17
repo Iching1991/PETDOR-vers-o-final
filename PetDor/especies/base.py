@@ -1,53 +1,34 @@
 """
-Classe base para configuração de espécies
+Base para configuração de espécies e perguntas de avaliação de dor.
 """
-from dataclasses import dataclass
-from typing import List
+
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field
 
 @dataclass
 class Pergunta:
-    """Representa uma pergunta de avaliação"""
+    """Representa uma pergunta de avaliação de dor."""
     texto: str
-    invertida: bool = False  # Se True, pontuação é invertida (ex: "teve problemas")
+    invertida: bool = False # Se True, uma resposta alta indica MENOS dor (ex: "Meu cão foi brincalhão")
+    peso: float = 1.0       # Peso padrão para a pergunta no cálculo da dor
 
 @dataclass
 class EspecieConfig:
-    """Configuração de uma espécie"""
+    """Configuração completa para uma espécie, incluindo perguntas e escala."""
     nome: str
     escala_min: int
     escala_max: int
-    perguntas: List[Pergunta]
-    descricao: str = ""
+    descricao: str
+    perguntas: List[Pergunta] = field(default_factory=list)
 
-    def get_pontuacao_maxima(self) -> int:
-        """Retorna pontuação máxima possível"""
-        return len(self.perguntas) * self.escala_max
+    @property
+    def opcoes_escala(self):
+        """Retorna as opções de escala para as perguntas (0 a 7, por exemplo)."""
+        return [str(i) for i in range(self.escala_min, self.escala_max + 1)]
 
-    def calcular_percentual(self, pontuacao_total: int) -> float:
-        """Calcula percentual de dor"""
-        max_pontos = self.get_pontuacao_maxima()
-        return (pontuacao_total / max_pontos * 100) if max_pontos > 0 else 0.0
-
-    def get_labels_escala(self) -> dict:
-        """Retorna labels para a escala de avaliação"""
-        if self.escala_max == 4:
-            return {
-                0: "0 - Nunca",
-                1: "1 - Raramente", 
-                2: "2 - Às vezes",
-                3: "3 - Frequentemente",
-                4: "4 - Sempre"
-            }
-        elif self.escala_max == 7:
-            return {
-                0: "0 - Nunca",
-                1: "1 - Muito raramente",
-                2: "2 - Raramente",
-                3: "3 - Às vezes",
-                4: "4 - Regularmente",
-                5: "5 - Frequentemente",
-                6: "6 - Muito frequentemente",
-                7: "7 - Sempre"
-            }
-        else:
-            return {i: f"{i}" for i in range(self.escala_min, self.escala_max + 1)}
+    def get_pergunta_por_id(self, id_pergunta: str) -> Optional[Pergunta]:
+        """Busca uma pergunta pelo seu ID (texto)."""
+        for p in self.perguntas:
+            if p.texto == id_pergunta:
+                return p
+        return None
