@@ -35,11 +35,18 @@ def main():
             migrar_banco_completo()
             st.session_state['db_initialized'] = True
 
-    # Redirecionamento automático após login
-    if 'usuario_id' in st.session_state and 'redirect_to_avaliacao' in st.session_state:
-        if st.session_state['redirect_to_avaliacao']:
-            st.session_state['redirect_to_avaliacao'] = False
+    # ============================================================
+    # REDIRECIONAMENTO AUTOMÁTICO PARA AVALIAÇÃO APÓS LOGIN
+    # ============================================================
+    # Esta flag é definida em pages/login.py após um login bem-sucedido
+    if st.session_state.get('redirect_to_avaliacao', False):
+        st.session_state['redirect_to_avaliacao'] = False # Reseta a flag para evitar loop
+        try:
             st.switch_page("pages/avaliacao.py")
+        except AttributeError:
+            # Fallback para versões antigas do Streamlit
+            st.experimental_rerun()
+        st.stop() # Importante para parar a execução atual e permitir o redirecionamento
 
     # Header
     st.title("🐾 " + APP_CONFIG['titulo'])
