@@ -5,11 +5,12 @@ Responsável por:
 - Exibir formulário de avaliação de dor para um pet selecionado.
 - Listar pets do tutor logado.
 - Redirecionar para cadastro de pet se nenhum for encontrado.
-- Salvar a avaliação no banco de dados.
+- Salvar a avaliação no banco de dados, incluindo respostas detalhadas.
 """
 
 import sys
 from pathlib import Path
+from typing import Dict, Optional
 
 # Adiciona a raiz do projeto ao path
 root_path = Path(__file__).parent.parent
@@ -21,7 +22,12 @@ from auth.user import buscar_usuario_por_id
 from database.connection import conectar_db
 from config import APP_CONFIG
 
-# Configuração da página (apenas uma vez, no nível superior)
+# Importa as classes base e as configurações de espécie
+from especies.base import EspecieConfig, Pergunta
+from especies.cao import CONFIG_CAES
+from especies.gato import CONFIG_GATOS
+
+# Configuração da página
 st.set_page_config(
     page_title="Avaliar Pet - " + APP_CONFIG["titulo"],
     page_icon="📋",
@@ -45,7 +51,6 @@ def listar_pets_do_tutor(usuario_id):
 
     pets = []
     for row in rows:
-        # Garante que os dados são acessados corretamente, seja por nome ou índice
         pets.append({
             "id": row["id"] if isinstance(row, dict) else row[0],
             "nome": row["nome"] if isinstance(row, dict) else row[1],
@@ -54,16 +59,26 @@ def listar_pets_do_tutor(usuario_id):
     return pets
 
 
-def salvar_avaliacao(pet_id, usuario_id, percentual_dor, observacoes):
-    """Salva avaliação no banco de dados."""
+def salvar_avaliacao(pet_id, usuario_id, percentual_dor, respostas_perguntas: Dict[str, str], observacoes):
+    """Salva avaliação no banco com respostas das perguntas."""
     try:
         conn = conectar_db()
         cursor = conn.cursor()
 
+        # Salva a avaliação principal
         cursor.execute("""
             INSERT INTO avaliacoes (pet_id, usuario_id, percentual_dor, observacoes)
             VALUES (?, ?, ?, ?)
         """, (pet_id, usuario_id, percentual_dor, observacoes))
+
+        avaliacao_id = cursor.lastrowid
+
+        # Salva respostas das perguntas na nova tabela
+        for pergunta_id, resposta_valor in respostas_perguntas.items():
+            cursor.execute("""
+                INSERT INTO avaliacao_respostas (avaliacao_id, pergunta_id, resposta)
+                VALUES (?, ?, ?)
+            """, (avaliacao_id, pergunta_id, resposta_valor))
 
         conn.commit()
         conn.close()
@@ -123,7 +138,6 @@ def main():
     st.markdown("---")
     st.subheader("Selecione o Pet para Avaliar")
 
-    # Cria uma lista de strings para o selectbox, mostrando nome e espécie
     nomes_pets_formatados = [f"{pet['nome']} ({pet['especie']})" for pet in pets_do_tutor]
 
     escolha_pet_str = st.selectbox(
@@ -132,7 +146,6 @@ def main():
         help="Selecione o pet que você deseja avaliar."
     )
 
-    # Encontra o objeto pet completo a partir da escolha do selectbox
     pet_escolhido = next((pet for pet in pets_do_tutor if f"{pet['nome']} ({pet['especie']})" == escolha_pet_str), None)
 
     if not pet_escolhido:
@@ -141,39 +154,118 @@ def main():
 
     st.write(f"Você está avaliando: **{pet_escolhido['nome']}** (Espécie: {pet_escolhido['especie']})")
 
-    # 4. Formulário de avaliação de dor
-    st.markdown("### 🩺 Nível de Dor")
-    with st.form("avaliacao_dor_form"):
-        percentual_dor = st.slider(
-            "Intensidade da dor (0% = sem dor, 100% = dor máxima)",
-            min_value=0, max_value=100, value=0, step=5,
-            help="Arraste para indicar o nível de dor percebido no pet."
+    # 4. Carrega a configuração de perguntas para a espécie selecionada
+    especie_config: Optional[EspecieConfig] = None
+    if pet_escolhido['especie'] == "Cão":
+        especie_config = CONFIG_CAES
+    elif pet_escolhido['especie'] == "Gato":
+        especie_config = CONFIG_GATOS
+    else:
+        # Fallback para espécies não configuradas
+        st.warning(f"Não há perguntas objetivas configuradas para a espécie '{pet_escolhido['especie']}'. Usando avaliação manual.")
+        # Cria uma configuração genérica para evitar erros
+        especie_config = EspecieConfig(
+            nome="Genérico",
+            descricao="Avaliação genérica",
+            perguntas=[],
+            opcoes_escala=["0 - Não se aplica", "1 - Leve", "2 - Moderada", "3 - Severa"] # Escala genérica
         )
 
-        observacoes = st.text_area(
-            "📝 Observações (opcional)",
-            placeholder="Descreva sinais de dor, comportamento, medicamentos em uso, etc.",
-            height=150
-        )
+    if not especie_config:
+        st.error("Configuração de perguntas não encontrada para esta espécie.")
+        st.stop()
 
-        submitted = st.form_submit_button(
-            "💾 Salvar Avaliação",
-            use_container_width=True,
-            type="primary"
-        )
+    # 5. Formulário de avaliação de dor
+    st.markdown("### 🩺 Avaliação Detalhada")
 
-    if submitted:
+    # Inicializa respostas_perguntas na sessão para persistir entre reruns
+    if 'respostas_perguntas' not in st.session_state:
+        st.session_state['respostas_perguntas'] = {}
+
+    if especie_config.perguntas:
+        st.markdown(f"**{especie_config.descricao}**")
+        with st.form("perguntas_objetivas_form"):
+            for i, pergunta in enumerate(especie_config.perguntas):
+                # Usa o ID da pergunta para o dicionário de respostas
+                pergunta_id = pergunta.id 
+
+                # Define o valor padrão do radio button a partir da sessão, se existir
+                default_index = 0
+                if pergunta_id in st.session_state['respostas_perguntas']:
+                    try:
+                        # Encontra o índice da resposta salva na lista de opções
+                        default_index = especie_config.opcoes_escala.index(st.session_state['respostas_perguntas'][pergunta_id])
+                    except ValueError:
+                        default_index = 0 # Fallback se a resposta salva não estiver nas opções
+
+                resposta = st.radio(
+                    f"**{i+1}. {pergunta.texto}**", # Texto da pergunta no label do radio
+                    options=especie_config.opcoes_escala,
+                    key=f"pergunta_{pergunta_id}_{pet_escolhido['id']}",
+                    horizontal=True,
+                    index=default_index # Usa o valor padrão da sessão
+                )
+                st.session_state['respostas_perguntas'][pergunta_id] = resposta # Salva a resposta na sessão
+
+            submitted_perguntas = st.form_submit_button(
+                "Calcular Percentual de Dor",
+                use_container_width=True,
+                type="secondary"
+            )
+
+            if submitted_perguntas:
+                # O percentual é calculado diretamente do st.session_state['respostas_perguntas']
+                st.session_state['percentual_calculado'] = especie_config.calcular_percentual_dor(st.session_state['respostas_perguntas'])
+                st.rerun() # Recarrega para exibir o percentual calculado
+
+    # Exibe o percentual calculado e permite ajuste manual
+    percentual_calculado = st.session_state.get('percentual_calculado', 0)
+    st.markdown("### 📊 Percentual de Dor Calculado")
+    st.metric("Nível de Dor Estimado", f"{percentual_calculado}%", delta=None)
+
+    st.markdown("### ⚖️ Ajuste Manual (opcional)")
+    percentual_final = st.slider(
+        "Ajuste o percentual de dor (baseado na sua observação)",
+        min_value=0, max_value=100, value=percentual_calculado, step=5,
+        key="percentual_final_slider"
+    )
+
+    observacoes = st.text_area(
+        "📝 Observações (opcional)",
+        placeholder="Descreva sinais de dor, comportamento, medicamentos em uso, etc.",
+        height=150,
+        key="observacoes_textarea"
+    )
+
+    # Salva a avaliação final
+    if st.button("💾 Salvar Avaliação Completa", use_container_width=True, type="primary"):
+        respostas_para_salvar = st.session_state.get('respostas_perguntas', {})
+
         sucesso, mensagem = salvar_avaliacao(
             pet_id=pet_escolhido["id"],
             usuario_id=usuario_id,
-            percentual_dor=percentual_dor,
-            observacoes=observacoes,
+            percentual_dor=percentual_final,
+            respostas_perguntas=respostas_para_salvar,
+            observacoes=observacoes
         )
+
         if sucesso:
             st.success(mensagem)
             st.balloons()
-            # Opcional: redirecionar para o histórico ou recarregar a página
-            # st.rerun()
+            # Limpa as variáveis de sessão para uma nova avaliação
+            if 'respostas_perguntas' in st.session_state:
+                del st.session_state['respostas_perguntas']
+            if 'percentual_calculado' in st.session_state:
+                del st.session_state['percentual_calculado']
+
+            st.markdown("""
+            <a href="/historico" target="_self">
+                <button style="background: #4CAF50; color: white; padding: 12px 24px; 
+                               border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                    📊 Ver Histórico
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
         else:
             st.error(mensagem)
 
