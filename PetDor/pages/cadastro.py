@@ -7,10 +7,9 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
-
-
 import streamlit as st
-from auth.user import cadastrar_usuario
+from auth.user import cadastrar_usuario, autenticar_usuario
+from database.models import buscar_usuario_por_id, buscar_usuario_por_email
 
 # Configuração da página
 st.set_page_config(
@@ -209,5 +208,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
