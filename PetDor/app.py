@@ -30,11 +30,10 @@ def main():
 
     # Inicializa banco de dados e executa migrações
     if 'db_initialized' not in st.session_state:
-        with st.spinner("Inicializando banco de dados..."):
+        with st.spinner("Inicializando sistema..."):
             init_database()
-            migrar_banco_completo()  # Executa todas as migrações
+            migrar_banco_completo()
             st.session_state['db_initialized'] = True
-            st.session_state['migracoes_executadas'] = True
 
     # Header
     st.title("🐾 " + APP_CONFIG['titulo'])
@@ -49,8 +48,13 @@ def main():
 
         if usuario_data:
             st.sidebar.success(f"👋 {usuario_data['nome']}")
+
+            # Mostra tipo de usuário se disponível
+            tipo = usuario_data.get('tipo_usuario', 'tutor')
+            if tipo:
+                st.sidebar.info(f"📋 {tipo.title()}")
         else:
-            st.sidebar.success(f"👋 Usuário")
+            st.sidebar.success("👋 Usuário")
 
         # Links do menu lateral
         st.sidebar.markdown("""
@@ -98,7 +102,7 @@ def main():
         # Botão Sair
         if st.sidebar.button("🚪 Sair", use_container_width=True):
             st.session_state.clear()
-            st.experimental_rerun()
+            st.rerun()
     else:
         # Usuário não logado
         st.sidebar.markdown("""
@@ -196,6 +200,7 @@ def main():
         # Dashboard para usuários logados
         usuario_data = buscar_usuario_por_id(st.session_state['usuario_id'])
         nome_usuario = usuario_data['nome'] if usuario_data else 'Usuário'
+        tipo_usuario = usuario_data.get('tipo_usuario', 'tutor').title() if usuario_data else 'Tutor'
 
         st.markdown(f"""
         <div style="text-align: center; padding: 2rem 1rem;">
@@ -203,6 +208,9 @@ def main():
                 Olá, {nome_usuario}! 👋
             </h2>
             <p style="color: #718096; font-size: 1.1rem;">
+                Perfil: <strong>{tipo_usuario}</strong>
+            </p>
+            <p style="color: #718096;">
                 O que você gostaria de fazer hoje?
             </p>
         </div>
@@ -317,5 +325,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
