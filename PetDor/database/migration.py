@@ -16,6 +16,96 @@ from config import DATABASE_PATH
 logger = logging.getLogger(__name__)
 
 
+def criar_tabela_usuarios():
+    """Cria a tabela de usuários."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL,
+                data_registro TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                tipo_usuario TEXT DEFAULT 'tutor',
+                cnpj TEXT,
+                endereco TEXT,
+                crmv TEXT,
+                especialidade TEXT,
+                data_desativacao TEXT,
+                motivo_desativacao TEXT,
+                email_confirmado INTEGER DEFAULT 0,
+                token_confirmacao TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        logger.info("Tabela 'usuarios' criada/verificada")
+        print("✅ Tabela 'usuarios' OK")
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao criar tabela usuarios: {e}")
+        print(f"❌ Erro: {e}")
+        return False
+
+def criar_tabela_pets():
+    """Cria a tabela de pets."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tutor_id INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                especie TEXT NOT NULL,
+                raca TEXT,
+                data_nascimento TEXT,
+                sexo TEXT,
+                peso REAL,
+                observacoes TEXT,
+                FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )
+        """)
+        conn.commit()
+        conn.close()
+        logger.info("Tabela 'pets' criada/verificada")
+        print("✅ Tabela 'pets' OK")
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao criar tabela pets: {e}")
+        print(f"❌ Erro: {e}")
+        return False
+
+def criar_tabela_avaliacoes():
+    """Cria a tabela de avaliações de dor."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS avaliacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pet_id INTEGER NOT NULL,
+                usuario_id INTEGER NOT NULL,
+                data_avaliacao TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                percentual_dor INTEGER NOT NULL,
+                observacoes TEXT,
+                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )
+        """)
+        conn.commit()
+        conn.close()
+        logger.info("Tabela 'avaliacoes' criada/verificada")
+        print("✅ Tabela 'avaliacoes' OK")
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao criar tabela avaliacoes: {e}")
+        print(f"❌ Erro: {e}")
+        return False
+
 def adicionar_colunas_desativacao():
     """Adiciona colunas para soft delete de usuários"""
     try:
@@ -94,7 +184,7 @@ def adicionar_campo_tipo_usuario():
 
 
 def adicionar_campos_confirmacao_email():
-    """Adiciona campos para confirmação de email e token"""
+    """Adiciona campos para confirmação de email."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -107,22 +197,19 @@ def adicionar_campos_confirmacao_email():
         if 'token_confirmacao' not in colunas:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN token_confirmacao TEXT")
             print("✅ Campo 'token_confirmacao' adicionado")
-        if 'data_expiracao_token' not in colunas:
-            cursor.execute("ALTER TABLE usuarios ADD COLUMN data_expiracao_token TEXT")
-            print("✅ Campo 'data_expiracao_token' adicionado")
 
         conn.commit()
         conn.close()
         logger.info("Campos de confirmação de email adicionados")
         return True
     except Exception as e:
-        logger.error(f"Erro ao adicionar campos de confirmação: {e}")
+        logger.error(f"Erro ao adicionar campos de confirmação de email: {e}")
         print(f"❌ Erro: {e}")
         return False
 
 
 def criar_tabela_compartilhamentos():
-    """Cria tabela para compartilhamento de pets entre tutor e profissionais"""
+    """Cria tabela para compartilhamento de pets com profissionais."""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -243,13 +330,16 @@ def migrar_banco_completo():
     print("\n🔄 Executando migrações completas do PETDor...\n")
 
     migracoes = [
+        ("Tabela de usuários", criar_tabela_usuarios),
+        ("Tabela de pets", criar_tabela_pets),
+        ("Tabela de avaliações", criar_tabela_avaliacoes),
         ("Colunas de desativação", adicionar_colunas_desativacao),
         ("Campo is_admin", adicionar_campo_admin),
         ("Campos de tipo de usuário", adicionar_campo_tipo_usuario),
         ("Campos de confirmação de email", adicionar_campos_confirmacao_email),
         ("Tabela de compartilhamentos", criar_tabela_compartilhamentos),
         ("Tabela de notificações", criar_tabela_notificacoes),
-        ("Tabela de respostas de avaliação", criar_tabela_avaliacao_respostas), # Esta linha já estava correta!
+        ("Tabela de respostas de avaliação", criar_tabela_avaliacao_respostas),
     ]
 
     sucessos = 0
@@ -261,7 +351,11 @@ def migrar_banco_completo():
             sucessos += 1
         else:
             falhas += 1
-            print(f"⚠️ Fal:
+            print(f"⚠️ Falha em: {nome}")
+
+    print(f"\n{'='*60}")
+    print(f"✅ Migrações concluídas: {sucessos} sucessos")
+    if falhas > 0:
         print(f"❌ Falhas: {falhas}")
     else:
         print("🎉 Todas as migrações executadas com sucesso!")
@@ -272,4 +366,3 @@ def migrar_banco_completo():
 
 if __name__ == "__main__":
     migrar_banco_completo()
-
