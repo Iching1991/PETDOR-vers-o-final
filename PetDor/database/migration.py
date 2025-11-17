@@ -28,18 +28,26 @@ def adicionar_colunas_desativacao():
         cursor.execute("PRAGMA table_info(usuarios)")
         colunas = [col[1] for col in cursor.fetchall()]
 
+        mudancas = []
+
         if 'data_desativacao' not in colunas:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN data_desativacao TEXT")
+            mudancas.append("data_desativacao")
             logger.info("Coluna 'data_desativacao' adicionada")
 
         if 'motivo_desativacao' not in colunas:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN motivo_desativacao TEXT")
+            mudancas.append("motivo_desativacao")
             logger.info("Coluna 'motivo_desativacao' adicionada")
 
         conn.commit()
         conn.close()
 
-        print("✅ Migração concluída com sucesso!")
+        if mudancas:
+            print(f"✅ Migração concluída! Colunas adicionadas: {', '.join(mudancas)}")
+        else:
+            print("✅ Banco de dados já está atualizado!")
+
         return True
 
     except Exception as e:
@@ -49,4 +57,5 @@ def adicionar_colunas_desativacao():
 
 
 if __name__ == "__main__":
+    print("🔄 Iniciando migração do banco de dados...")
     adicionar_colunas_desativacao()
