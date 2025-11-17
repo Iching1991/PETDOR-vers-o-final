@@ -1,192 +1,155 @@
 """
-Migrações do banco de dados PETDOR
+Sistema de MIGRAÇÕES oficial do PETDOR.
+
+Funções:
+- Registrar migrações executadas
+- Criar tabelas
+- Rodar apenas migrações novas
 """
 
-import sys
 import sqlite3
-import logging
 from pathlib import Path
+import sys
 
-# -----------------------------------------
-# Ajuste do path do projeto
-# -----------------------------------------
-root_path = Path(__file__).resolve().parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+# Adiciona raiz ao path
+root = Path(__file__).resolve().parent.parent
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
 
-from config import DATABASE_PATH
-from .connection import conectar_db  # ✅ Conexão centralizada
-
-logger = logging.getLogger(__name__)
+from connection import DATABASE_PATH, conectar_db
 
 
 # -----------------------------------------
-# Funções auxiliares
+# 🔍 Controle de migrações
 # -----------------------------------------
-def coluna_existe(cursor, tabela, coluna):
-    cursor.execute(f"PRAGMA table_info({tabela})")
-    colunas = [info[1] for info in cursor.fetchall()]
-    return coluna in colunas
+def migra_executada(nome):
+    conn = conectar_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT 1 FROM migrations WHERE nome = ?", (nome,))
+    done = cur.fetchone()
+
+    conn.close()
+    return done is not None
 
 
-def adicionar_coluna(cursor, tabela, coluna, tipo):
-    if not coluna_existe(cursor, tabela, coluna):
-        cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
-        print(f"✔ Coluna adicionada em {tabela}: {coluna}")
-    else:
-        print(f"ℹ Coluna já existe: {tabela}.{coluna}")
+def registrar_migracao(nome):
+    conn = conectar_db()
+    cur = conn.cursor()
 
-
-# -----------------------------------------
-# MIGRAÇÃO: Tabela usuários
-# -----------------------------------------
-def criar_tabela_usuarios():
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                senha_hash TEXT NOT NULL,
-                data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
-                ativo INTEGER DEFAULT 1,
-                is_admin INTEGER DEFAULT 0,
-                tipo_usuario TEXT DEFAULT 'tutor',
-                cnpj TEXT,
-                endereco TEXT,
-                crmv TEXT,
-                especialidade TEXT,
-                data_desativacao TEXT,
-                motivo_desativacao TEXT,
-                email_confirmado INTEGER DEFAULT 0,
-                token_confirmacao TEXT
-            )
-        """)
-
-        conn.commit()
-        conn.close()
-        print("✅ Tabela 'usuarios' OK")
-        return True
-
-    except Exception as e:
-        print(f"❌ Erro ao criar tabela usuarios: {e}")
-        return False
+    cur.execute("INSERT INTO migrations (nome) VALUES (?)", (nome,))
+    conn.commit()
+    conn.close()
 
 
 # -----------------------------------------
-# MIGRAÇÃO: Tabela pets
+# 🏗 Migrações oficiais PETDOR
 # -----------------------------------------
-def criar_tabela_pets():
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
+def m001_usuarios():
+    conn = conectar_db()
+    cur = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tutor_id INTEGER NOT NULL,
-                nome TEXT NOT NULL,
-                especie TEXT NOT NULL,
-                raca TEXT,
-                data_nascimento TEXT,
-                sexo TEXT,
-                peso REAL,
-                observacoes TEXT,
-                data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
-        """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha_hash TEXT NOT NULL,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
+            ativo INTEGER DEFAULT 1
+        )
+    """)
 
-        conn.commit()
-        conn.close()
-        print("✅ Tabela 'pets' OK")
-        return True
-
-    except Exception as e:
-        print(f"❌ Erro ao criar tabela pets: {e}")
-        return False
+    conn.commit()
+    conn.close()
 
 
-# -----------------------------------------
-# MIGRAÇÃO: Tabela avaliações
-# -----------------------------------------
-def criar_tabela_avaliacoes():
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
+def m002_pets():
+    conn = conectar_db()
+    cur = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS avaliacoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pet_id INTEGER NOT NULL,
-                usuario_id INTEGER NOT NULL,
-                data_avaliacao TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                percentual_dor REAL NOT NULL,
-                observacoes TEXT,
-                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-            )
-        """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tutor_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            especie TEXT NOT NULL,
+            raca TEXT,
+            peso REAL,
+            data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
+        )
+    """)
 
-        conn.commit()
-        conn.close()
-        print("✅ Tabela 'avaliacoes' OK")
-        return True
-
-    except Exception as e:
-        print(f"❌ Erro ao criar tabela avaliacoes: {e}")
-        return False
+    conn.commit()
+    conn.close()
 
 
-# -----------------------------------------
-# MIGRAÇÃO: Tabela respostas
-# -----------------------------------------
-def criar_tabela_avaliacao_respostas():
-    try:
-        conn = conectar_db()
-        cursor = conn.cursor()
+def m003_avaliacoes():
+    conn = conectar_db()
+    cur = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS avaliacao_respostas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                avaliacao_id INTEGER NOT NULL,
-                pergunta_id TEXT NOT NULL,
-                resposta TEXT NOT NULL,
-                FOREIGN KEY (avaliacao_id) REFERENCES avaliacoes(id) ON DELETE CASCADE
-            )
-        """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS avaliacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pet_id INTEGER NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            percentual_dor REAL NOT NULL,
+            observacoes TEXT,
+            data_avaliacao TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+        )
+    """)
 
-        conn.commit()
-        conn.close()
-        print("✅ Tabela 'avaliacao_respostas' OK")
-        return True
+    conn.commit()
+    conn.close()
 
-    except Exception as e:
-        print(f"❌ Erro ao criar tabela avaliacao_respostas: {e}")
-        return False
+
+def m004_password_reset():
+    conn = conectar_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+        )
+    """)
+
+    conn.commit()
+    conn.close()
 
 
 # -----------------------------------------
-# 🚀 Executor geral
+# 🚀 Executor geral de migrações
 # -----------------------------------------
+MIGRACOES = [
+    ("m001_usuarios", m001_usuarios),
+    ("m002_pets", m002_pets),
+    ("m003_avaliacoes", m003_avaliacoes),
+    ("m004_password_reset", m004_password_reset),
+]
+
+
 def migrar_banco_completo():
-    print("\n🔄 Executando migrações completas do PETDOR...\n")
+    print("\n🔄 Executando migrações do PETDOR...\n")
 
-    migracoes = [
-        ("Tabela de usuários", criar_tabela_usuarios),
-        ("Tabela de pets", criar_tabela_pets),
-        ("Tabela de avaliações", criar_tabela_avaliacoes),
-        ("Tabela de respostas", criar_tabela_avaliacao_respostas),
-    ]
+    for nome, func in MIGRACOES:
+        if not migra_executada(nome):
+            print(f"▶ Rodando: {nome}")
+            func()
+            registrar_migracao(nome)
+            print(f"✔ Finalizado: {nome}")
+        else:
+            print(f"⏭ Já executado: {nome}")
 
-    for nome, func in migracoes:
-        print(f"\n📢 Migrando: {nome}")
-        func()
-
-    print("\n🎉 Migrações concluídas!\n")
+    print("\n🎉 Banco atualizado com sucesso!\n")
 
 
 if __name__ == "__main__":
