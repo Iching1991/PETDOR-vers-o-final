@@ -4,10 +4,10 @@
 import sys
 from pathlib import Path
 
-# Adiciona a raiz do projeto ao path
-root_path = Path(__file__).parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 
 import streamlit as st
 from auth.user import cadastrar_usuario
@@ -209,4 +209,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
