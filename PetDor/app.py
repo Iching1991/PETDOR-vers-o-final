@@ -13,6 +13,12 @@ import streamlit as st
 root_path = Path(__file__).parent
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
+from database.connection import conectar_db
+from database.migration import criar_tabelas
+
+# Inicializa o banco
+conectar_db()
+criar_tabelas()
 
 # -----------------------------------------------------------
 # MIGRAÇÃO DO BANCO (executa apenas 1 vez no startup)
@@ -208,5 +214,6 @@ def card(emoji, titulo, link):
 # -----------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
