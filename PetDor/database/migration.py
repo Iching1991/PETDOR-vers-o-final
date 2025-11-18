@@ -1,16 +1,26 @@
 """
 Criação e migração de tabelas do PETDOR
 """
-from .connection import conectar_db
+
 import logging
+from .connection import conectar_db
 
 logger = logging.getLogger(__name__)
 
+
 def criar_tabelas():
+    """Cria todas as tabelas necessárias do sistema PETDOR."""
     conn = conectar_db()
     cursor = conn.cursor()
 
-    # Usuários
+    # ----------------------------------------
+    # 🔧 Ativa suporte a FOREIGN KEY no SQLite
+    # ----------------------------------------
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    # ----------------------------------------
+    # 👤 Tabela: Usuários
+    # ----------------------------------------
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,10 +29,12 @@ def criar_tabelas():
             senha_hash TEXT NOT NULL,
             data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
             ativo INTEGER DEFAULT 1
-        )
+        );
     """)
 
-    # Pets
+    # ----------------------------------------
+    # 🐾 Tabela: Pets
+    # ----------------------------------------
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,10 +45,12 @@ def criar_tabelas():
             peso REAL,
             data_cadastro TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (tutor_id) REFERENCES usuarios(id) ON DELETE CASCADE
-        )
+        );
     """)
 
-    # Avaliações
+    # ----------------------------------------
+    # 📋 Tabela: Avaliações de dor
+    # ----------------------------------------
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS avaliacoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,10 +61,12 @@ def criar_tabelas():
             data_avaliacao TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-        )
+        );
     """)
 
-    # Reset de senha
+    # ----------------------------------------
+    # 🔑 Reset de senha
+    # ----------------------------------------
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS password_resets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,12 +76,20 @@ def criar_tabelas():
             used INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-        )
+        );
     """)
 
     conn.commit()
     conn.close()
-    logger.info("Migrações executadas com sucesso.")
+
+    logger.info("✔ Todas as tabelas foram criadas/migradas com sucesso.")
+
 
 def migrar_banco_completo():
+    """
+    Executa todas as migrações necessárias no banco.
+    Pode crescer com novas versões.
+    """
+    logger.info("🔄 Iniciando migração completa do banco...")
     criar_tabelas()
+    logger.info("🏁 Migração finalizada.")
